@@ -59,8 +59,44 @@ This will create (or update) `report.html` in the project root. Open this file i
 
 ## Algorithm Details
 
-The core alignment utilizes an image pyramid approach to handle high-resolution images efficiently:
+### Single-Scale Alignment (JPEGs)
 
-- **Metric**: Sum of Squared Differences (SSD / L2 Norm) is used to measure alignment quality.
-- **Pyramid Search**: The algorithm recursively aligns smaller versions of the image to find a coarse offset, then refines it at higher resolutions.
-- **Features**: Edges are extracted using Sobel filters to improved alignment robustness against intensity variations between channels.
+- **Target**: Small, low-resolution images (e.g., `cathedral.jpg`, `monastery.jpg`).
+- **Method**: Exhaustive search over a fixed displacement window (default `[-15, 15]` pixels).
+- **Metric**: Sum of Squared Differences (SSD) is used to find the best alignment.
+- **Process**: Aligns Green and Red channels to the Blue channel (anchor).
+
+### Multi-Scale Pyramid Alignment (TIFFs)
+
+- **Target**: Large, high-resolution glass plate images (e.g., `emir.tif`).
+- **Method**: Recursive coarse-to-fine alignment using an image pyramid (depth=4).
+- **Implementation**:
+  - Image is downsampled by a factor of 2 at each level using `skimage.transform.rescale`.
+  - Alignment is computed at the coarsest level first.
+  - Offsets are upsampled and refined at each subsequent finer level with a smaller search window (`[-2, 2]` pixels).
+- **Efficiency**: Drastically reduces computation time compared to exhaustive search on full-resolution images.
+
+### Edge Features for Robustness
+
+- **Problem**: Simple brightness-based matching fails when channels have different intensity profiles (e.g., blue dress looks bright in blue channel but dark in red).
+- **Solution**: Alignment is performed on **edge maps** rather than raw pixel intensities.
+- **Technique**: Used `skimage.filters.sobel` to compute gradient magnitude maps for each channel before alignment. This focuses on structural boundaries, which are consistent across channels.
+
+### Bells & Whistles (Post-Processing)
+
+To improve the visual quality of the final composite, the following automatic post-processing steps are applied:
+
+1.  **Auto-Crop**:
+    - Automatically crops 8% of the image borders to remove jagged alignment artifacts and the glass plate borders using recursive or fixed-margin cropping.
+2.  **Auto-Contrast**:
+    - Applies contrast stretching by rescaling pixel intensities.
+    - Uses 2nd and 98th percentiles to clip outliers and expand the dynamic range to [0, 1].
+3.  **Auto-White Balance**:
+    - Uses the **Gray World Assumption**.
+    - Scales the Red and Blue channels so that their mean intensity matches the Green channel, resulting in more natural-looking colors.
+
+## Implementation Technologies
+
+- **Image I/O**: `skimage.io` for reading/writing multiple formats.
+- **Processing**: `numpy` for vectorized array operations (rolling, stacking).
+- **Transforms**: `skimage.transform` and `skimage.filters` for pyramid construction and edge detection.
