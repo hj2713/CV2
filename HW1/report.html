@@ -267,6 +267,55 @@
             letter-spacing: 1px;
         }
 
+        /* Lightbox */
+        .lightbox {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            padding-top: 50px;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: rgba(0,0,0,0.9);
+        }
+
+        .lightbox-content {
+            margin: auto;
+            display: block;
+            width: 80%;
+            max-width: 1200px;
+            max-height: 85vh;
+            object-fit: contain;
+            transition: transform 0.2s;
+            cursor: zoom-in;
+        }
+
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            transition: 0.3s;
+            cursor: pointer;
+            z-index: 2001;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #bbb;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        
+        /* Zoomed state */
+        .zoomed {
+            cursor: zoom-out;
+            transform: scale(2.0); /* Initial zoom level */
+        }
     </style>
 </head>
 <body>
@@ -539,5 +588,91 @@
     &copy; 2026 Computer Vision HW1
 </footer>
 
+<!-- Lightbox Modal -->
+<div id="lightbox-modal" class="lightbox">
+  <span class="close">&times;</span>
+  <img class="lightbox-content" id="lightbox-img">
+</div>
+
+<script>
+    // Lightbox Logic
+    const modal = document.getElementById("lightbox-modal");
+    const modalImg = document.getElementById("lightbox-img");
+    const closeBtn = document.getElementsByClassName("close")[0];
+    let isZoomed = false;
+
+    // Open lightbox
+    document.querySelectorAll('.img-card img').forEach(img => {
+        img.style.cursor = 'pointer';
+        img.onclick = function(){
+            modal.style.display = "flex";
+            modal.style.alignItems = "center";
+            modal.style.justifyContent = "center";
+            modalImg.src = this.src;
+            isZoomed = false;
+            modalImg.style.transform = "scale(1)";
+            modalImg.classList.remove('zoomed');
+        }
+    });
+
+    // Close lightbox
+    closeBtn.onclick = function() { 
+        modal.style.display = "none";
+    }
+    
+    // Close on click outside
+    modal.onclick = function(e) {
+        if (e.target === modal) {
+            modal.style.display = "none";
+        }
+    }
+
+    // Zoom Toggle with Click
+    modalImg.onclick = function(e) {
+        e.stopPropagation(); // Prevent closing
+        if (isZoomed) {
+            this.style.transform = "scale(1)";
+            this.classList.remove('zoomed');
+            isZoomed = false;
+        } else {
+            this.style.transform = "scale(2.5)";
+            this.classList.add('zoomed');
+            isZoomed = true;
+        }
+    };
+    
+    // Zoom with Scroll
+    modalImg.onwheel = function(event) {
+        event.preventDefault();
+        let scale = 1;
+        const currentTransform = this.style.transform;
+        if (currentTransform && currentTransform.includes('scale')) {
+            const match = currentTransform.match(/scale\(([^)]+)\)/);
+            if (match) {
+                scale = parseFloat(match[1]);
+            }
+        }
+        
+        if (event.deltaY < 0) {
+            // Zoom In
+            scale += 0.1;
+        } else {
+            // Zoom Out
+            scale -= 0.1;
+        }
+        
+        // Limits
+        scale = Math.min(Math.max(.5, scale), 5);
+        this.style.transform = `scale(${scale})`;
+        
+        if(scale > 1) {
+             this.classList.add('zoomed');
+             isZoomed = true;
+        } else {
+             this.classList.remove('zoomed');
+             isZoomed = false;
+        }
+    }
+</script>
 </body>
 </html>
