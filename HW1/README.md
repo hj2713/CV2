@@ -84,13 +84,16 @@ This will create (or update) `report.html` in the project root. Open this file i
 
 ### Bells & Whistles (Post-Processing)
 
-To improve the visual quality of the final composite, the following automatic post-processing steps are applied:
+To improve the visual quality of the final composite (specifically for the high-resolution TIFFs), the following automatic post-processing steps are applied:
 
 1.  **Auto-Crop**:
     - Automatically crops 8% of the image borders to remove jagged alignment artifacts and the glass plate borders using recursive or fixed-margin cropping.
 2.  **Auto-Contrast**:
     - Applies contrast stretching by rescaling pixel intensities.
     - Uses 2nd and 98th percentiles to clip outliers and expand the dynamic range to [0, 1].
+3.  **Auto-White Balance**:
+    - Uses the **Gray World Assumption**.
+    - Scales the Red and Blue channels so that their mean intensity matches the Green channel, resulting in more natural-looking colors.
 
 ## Implementation Technologies
 
