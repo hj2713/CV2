@@ -5,9 +5,14 @@ import urllib.parse
 from datetime import datetime
 
 # Find the output directory
-base_dir = '/Users/himanshujhawar/Downloads/CV2/HW1'
+
+base_dir = '.'
 # Use the known relative directory name
 out_dir_name = 'output_images'
+
+
+
+
 print(f"Using output directory: {out_dir_name}")
 
 # Offsets from offset.txt
@@ -342,6 +347,55 @@ html = f"""<!DOCTYPE html>
             letter-spacing: 1px;
         }}
 
+        /* Lightbox */
+        .lightbox {{
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            padding-top: 50px;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: rgba(0,0,0,0.9);
+        }}
+
+        .lightbox-content {{
+            margin: auto;
+            display: block;
+            width: 80%;
+            max-width: 1200px;
+            max-height: 85vh;
+            object-fit: contain;
+            transition: transform 0.2s;
+            cursor: zoom-in;
+        }}
+
+        .close {{
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            transition: 0.3s;
+            cursor: pointer;
+            z-index: 2001;
+        }}
+
+        .close:hover,
+        .close:focus {{
+            color: #bbb;
+            text-decoration: none;
+            cursor: pointer;
+        }}
+        
+        /* Zoomed state */
+        .zoomed {{
+            cursor: zoom-out;
+            transform: scale(2.0); /* Initial zoom level */
+        }}
     </style>
 </head>
 <body>
@@ -521,10 +575,113 @@ html += """
     </div>
 </section>
 
-<footer style="text-align:center; padding:40px; color:#95a5a6; font-size:0.9rem;">
-    &copy; {year} Computer Vision HW1
+<footer style="text-align:center; padding:60px 20px; color:#7f8c8d; font-size:1.1rem;">
+    &copy; {year} Computer Vision HW1<br>
+    <div style="margin: 15px 0;">
+        Submitted By: <strong style="color:#2c3e50; font-size: 1.2rem;">Himanshu Jhawar (hj2713)</strong>
+    </div>
+    <a href="https://github.com/hj2713/CV2/tree/main/HW1" target="_blank" style="
+        display: inline-block;
+        margin-top: 10px;
+        padding: 10px 25px;
+        background-color: #3498db;
+        color: white;
+        text-decoration: none;
+        border-radius: 30px;
+        font-weight: 500;
+        transition: transform 0.2s, background-color 0.2s;
+        box-shadow: 0 4px 6px rgba(52, 152, 219, 0.2);
+    " onmouseover="this.style.transform='translateY(-2px)'; this.style.backgroundColor='#2980b9'" onmouseout="this.style.transform='translateY(0)'; this.style.backgroundColor='#3498db'">
+        View on GitHub
+    </a>
 </footer>
 
+<!-- Lightbox Modal -->
+<div id="lightbox-modal" class="lightbox">
+  <span class="close">&times;</span>
+  <img class="lightbox-content" id="lightbox-img">
+</div>
+
+<script>
+    // Lightbox Logic
+    const modal = document.getElementById("lightbox-modal");
+    const modalImg = document.getElementById("lightbox-img");
+    const closeBtn = document.getElementsByClassName("close")[0];
+    let isZoomed = false;
+
+    // Open lightbox
+    document.querySelectorAll('.img-card img').forEach(img => {{
+        img.style.cursor = 'pointer';
+        img.onclick = function(){{
+            modal.style.display = "flex";
+            modal.style.alignItems = "center";
+            modal.style.justifyContent = "center";
+            modalImg.src = this.src;
+            isZoomed = false;
+            modalImg.style.transform = "scale(1)";
+            modalImg.classList.remove('zoomed');
+        }}
+    }});
+
+    // Close lightbox
+    closeBtn.onclick = function() {{ 
+        modal.style.display = "none";
+    }}
+    
+    // Close on click outside
+    modal.onclick = function(e) {{
+        if (e.target === modal) {{
+            modal.style.display = "none";
+        }}
+    }}
+
+    // Zoom Toggle with Click
+    modalImg.onclick = function(e) {{
+        e.stopPropagation(); // Prevent closing
+        if (isZoomed) {{
+            this.style.transform = "scale(1)";
+            this.classList.remove('zoomed');
+            isZoomed = false;
+        }} else {{
+            this.style.transform = "scale(2.5)";
+            this.classList.add('zoomed');
+            isZoomed = true;
+        }}
+    }};
+    
+    // Zoom with Scroll
+    modalImg.onwheel = function(event) {{
+        event.preventDefault();
+        let scale = 1;
+        const currentTransform = this.style.transform;
+        if (currentTransform && currentTransform.includes('scale')) {{
+            const match = currentTransform.match(/scale\(([^)]+)\)/);
+            if (match) {{
+                scale = parseFloat(match[1]);
+            }}
+        }}
+        
+        if (event.deltaY < 0) {{
+            // Zoom In
+            scale += 0.1;
+        }} else {{
+            // Zoom Out
+            scale -= 0.1;
+        }}
+        
+        // Limits
+        scale = Math.min(Math.max(.5, scale), 5);
+        this.style.transform = `scale(${{scale}})`;
+        
+        if(scale > 1) {{
+             this.classList.add('zoomed');
+             isZoomed = true;
+        }} else {{
+             this.classList.remove('zoomed');
+             isZoomed = false;
+        }}
+    }}
+</script>
 </body>
 </html>
 """.format(year=datetime.now().year)
