@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HW2: Automatic Feature Matching — Himanshu Jhawar</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #fafafa;
+      color: #333;
+      line-height: 1.6;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+    h1 { font-size: 1.8rem; margin-bottom: 0.3rem; color: #1a1a1a; }
+    .subtitle { color: #666; font-size: 0.95rem; margin-bottom: 2rem; }
+    h2 {
+      font-size: 1.3rem;
+      color: #2c3e50;
+      margin: 2.5rem 0 0.5rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 2px solid #e0e0e0;
+    }
+    h3 {
+      font-size: 1.05rem;
+      color: #444;
+      margin: 1.5rem 0 0.5rem;
+    }
+    p, li { font-size: 0.92rem; margin-bottom: 0.5rem; }
+    ul { padding-left: 1.5rem; margin-bottom: 1rem; }
+    .info-box {
+      background: #f0f4f8;
+      border-left: 4px solid #4a90d9;
+      padding: 0.8rem 1rem;
+      border-radius: 4px;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+    }
+    table {
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 0.88rem;
+      width: 100%;
+    }
+    th, td {
+      padding: 0.5rem 0.8rem;
+      border: 1px solid #ddd;
+      text-align: left;
+    }
+    th { background: #f5f5f5; font-weight: 600; }
+    .result-img {
+      width: 100%;
+      border-radius: 6px;
+      border: 1px solid #e0e0e0;
+      margin: 0.5rem 0;
+    }
+    .img-caption {
+      text-align: center;
+      font-size: 0.82rem;
+      color: #777;
+      margin-bottom: 1rem;
+    }
+    .scene-box {
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    .three-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1rem;
+    }
+    code {
+      background: #f0f0f0;
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+      font-size: 0.85rem;
+    }
+    hr { border: none; border-top: 1px solid #eee; margin: 2rem 0; }
+    details {
+      margin: 1.5rem 0;
+    }
+    details summary {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #2c3e50;
+      cursor: pointer;
+      padding: 0.6rem 0;
+      border-bottom: 2px solid #e0e0e0;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    details summary::-webkit-details-marker { display: none; }
+    details summary::before {
+      content: '▶';
+      font-size: 0.8rem;
+      transition: transform 0.2s;
+      display: inline-block;
+    }
+    details[open] summary::before {
+      transform: rotate(90deg);
+    }
+    details details {
+      margin: 0.8rem 0;
+    }
+    details details summary {
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: #555;
+      padding: 0.4rem 0;
+      border-bottom: 1px solid #eee;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>HW2: Automatic Feature Matching</h1>
+  <p class="subtitle">
+    Himanshu Jhawar (hj2713)<br>
+    COMS4732W Computer Vision 2
+  </p>
+
+  <!-- ===== Overview ===== -->
+  <h2>Overview</h2>
+  <p>This project implements an automatic feature matching pipeline:</p>
+  <ul>
+    <li><strong>Step 0:</strong> Capture & display 2 images</li>
+    <li><strong>Step 1:</strong> Harris Corner Detection (provided <code>harris.py</code>, single scale)</li>
+    <li><strong>Step 2:</strong> Non-Maximal Suppression (NMS) via <code>scipy.ndimage.maximum_filter</code></li>
+    <li><strong>Step 3:</strong> Feature Descriptor Extraction — 40×40 RGB → 8×8×3 (192-dim), bias/gain normalized</li>
+    <li><strong>Step 4:</strong> Feature Matching — Lowe's NNDR with <strong>L2 (Euclidean)</strong> distance</li>
+    <li><strong>Extra Credit:</strong> 3-image panorama stitching with RANSAC homography</li>
+  </ul>
+
+  <div class="info-box">
+    <strong>HW Libraries:</strong> numpy, matplotlib, scikit-image (<code>resize</code>, <code>corner_harris</code>),
+    scipy (<code>maximum_filter</code>, <code>cdist</code>), Pillow (EXIF orientation fix)
+  </div>
+  <div class="info-box">
+    <strong>Extra Credit Libraries:</strong> scikit-image (<code>ransac</code>, <code>ProjectiveTransform</code>, <code>warp</code>)
+  </div>
+
+  <!-- ===== Hyperparameters ===== -->
+  <h2>Hyperparameters</h2>
+  <table>
+    <tr><th>Parameter</th><th>Value</th></tr>
+    <tr><td>Harris edge_discard</td><td>20 px</td></tr>
+    <tr><td>NMS window size</td><td>20 px</td></tr>
+    <tr><td>Descriptor</td><td>40×40 → 8×8×3 RGB (192-dim)</td></tr>
+    <tr><td>Similarity metric</td><td>L2 (Euclidean distance)</td></tr>
+    <tr><td>NNDR threshold</td><td>0.5</td></tr>
+  </table>
+
+  <hr>
+
+  <!-- ===== SCENE 1: HW Staff Example ===== -->
+  <details>
+  <summary>Scene 1 — HW Staff Example Images</summary>
+  <div class="scene-box">
+
+    <details>
+    <summary>Step 0: Original Images — Two staff-provided input images displayed side-by-side</summary>
+    <img src="results/image_present_HW/step0_originals.png" class="result-img" alt="Original images">
+    </details>
+
+    <details>
+    <summary>Step 1: Harris Corner Detection — Detected corners overlaid on both images (red dots)</summary>
+    <img src="results/image_present_HW/step1_harris.png" class="result-img" alt="Harris corners">
+    </details>
+
+    <details>
+    <summary>Step 2: Non-Maximal Suppression — Corners after NMS (window size = 20), only local maxima retained</summary>
+    <img src="results/image_present_HW/step2_nms.png" class="result-img" alt="NMS corners">
+    </details>
+
+    <details>
+    <summary>Step 4.1: NNDR Histogram — Distribution of nearest-neighbor distance ratios with threshold (L2 metric)</summary>
+    <img src="results/image_present_HW/step4_nndr_histogram.png" class="result-img" alt="NNDR histogram">
+    </details>
+
+    <details>
+    <summary>Step 4.2: Feature Matches (Option 2) — Green lines = matches, red dots = unmatched</summary>
+    <img src="results/image_present_HW/step4_matches.png" class="result-img" alt="Feature matches">
+    </details>
+
+    <details>
+    <summary>Step 4.3: Top 5 Best Matches — img1 feature | 1NN from img2 | 2NN from img2 (RGB patches)</summary>
+    <img src="results/image_present_HW/step4_top5_matches.png" class="result-img" alt="Top 5 matches">
+    </details>
+  </div>
+  </details>
+
+  <hr>
+
+  <!-- ===== SCENE 2: Own Images ===== -->
+  <details>
+  <summary>Scene 2 — Custom Scene</summary>
+  <div class="scene-box">
+
+    <details>
+    <summary>Step 0: Original Images — Two personal photos displayed side-by-side</summary>
+    <img src="results/running_on_my_image/step0_originals.png" class="result-img" alt="Original images">
+    </details>
+
+    <details>
+    <summary>Step 1: Harris Corner Detection — Detected corners overlaid on both images (red dots)</summary>
+    <img src="results/running_on_my_image/step1_harris.png" class="result-img" alt="Harris corners">
+    </details>
+
+    <details>
+    <summary>Step 2: Non-Maximal Suppression — Corners after NMS (window size = 20), only local maxima retained</summary>
+    <img src="results/running_on_my_image/step2_nms.png" class="result-img" alt="NMS corners">
+    </details>
+
+    <details>
+    <summary>Step 4.1: NNDR Histogram — Distribution of nearest-neighbor distance ratios with threshold (L2 metric)</summary>
+    <img src="results/running_on_my_image/step4_nndr_histogram.png" class="result-img" alt="NNDR histogram">
+    </details>
+
+    <details>
+    <summary>Step 4.2: Feature Matches (Option 2) — Green lines = matches, red dots = unmatched</summary>
+    <img src="results/running_on_my_image/step4_matches.png" class="result-img" alt="Feature matches">
+    </details>
+
+    <details>
+    <summary>Step 4.3: Top 5 Best Matches — img1 feature | 1NN from img2 | 2NN from img2 (RGB patches)</summary>
+    <img src="results/running_on_my_image/step4_top5_matches.png" class="result-img" alt="Top 5 matches">
+    </details>
+  </div>
+  </details>
+
+  <hr>
+
+  <!-- ===== SCENE 3: Extra Credit Panorama ===== -->
+  <details>
+  <summary>Extra Credit — 3-Image Panorama Stitching</summary>
+  <div class="scene-box">
+
+    <details>
+    <summary>Input Images — 3 overlapping images (imgC1, imgC2, imgC3) used for panorama</summary>
+    <div class="three-col">
+      <div>
+        <img src="images/imgC1.jpg" class="result-img" alt="imgC1">
+        <p class="img-caption">imgC1</p>
+      </div>
+      <div>
+        <img src="images/imgC2.jpg" class="result-img" alt="imgC2">
+        <p class="img-caption">imgC2</p>
+      </div>
+      <div>
+        <img src="images/imgC3.jpg" class="result-img" alt="imgC3">
+        <p class="img-caption">imgC3</p>
+      </div>
+    </div>
+    </details>
+
+    <details>
+    <summary>Feature Matching — Matches between pairs (C1↔C2 and C2↔C3) for homography estimation</summary>
+    <p style="margin: 0.5rem 0 0.3rem; font-size: 0.9rem; font-weight: 500;">C1 ↔ C2</p>
+    <img src="results/panoramic_3_images_combined/step4_C1-C2_matches.png" class="result-img" alt="C1-C2 matches">
+    <p style="margin: 0.8rem 0 0.3rem; font-size: 0.9rem; font-weight: 500;">C2 ↔ C3</p>
+    <img src="results/panoramic_3_images_combined/step4_C2-C3_matches.png" class="result-img" alt="C2-C3 matches">
+    </details>
+
+    <details>
+    <summary>Method — Harris → NMS → descriptors → NNDR → RANSAC → warp → blend</summary>
+    <p style="padding: 0.5rem 0;">
+      Pipeline: Harris corners → NMS → RGB descriptors → NNDR matching on pairs
+      (C1↔C2, C2↔C3) → RANSAC homography (<code>skimage.measure.ransac</code>) →
+      chain H₁₃ = H₁₂ × H₂₃ →
+      inverse warp (<code>skimage.transform.warp</code>) → average blending in overlap regions.
+    </p>
+    </details>
+
+    <details>
+    <summary>Stitched Panorama — Final 3-image panorama using features from Steps 1–4</summary>
+    <img src="results/panoramic_3_images_combined/extra_credit_panorama.png" class="result-img" alt="Panorama">
+    </details>
+  </div>
+  </details>
+
+  <hr>
+  <p style="text-align:center; color:#999; font-size:0.8rem; margin-top:2rem;">
+    COMS4732W Computer Vision 2 · HW2 · Himanshu Jhawar (hj2713)
+  </p>
+
+</body>
+</html>
