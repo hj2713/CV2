@@ -210,35 +210,82 @@
   <summary>Scene 2 — Custom Scene</summary>
   <div class="scene-box">
 
+    <!-- Image Pair 1 -->
     <details>
-    <summary>Step 0: Original Images — Two personal photos displayed side-by-side</summary>
-    <img src="results/running_on_my_image/step0_originals.png" class="result-img" alt="Original images">
+    <summary>Image Pair 1</summary>
+    <div style="padding-left: 0.5rem;">
+
+      <details>
+      <summary>Step 0: Original Images — Two photos displayed side-by-side</summary>
+      <img src="results/running_on_my_image/1/step0_originals.png" class="result-img" alt="Original images">
+      </details>
+
+      <details>
+      <summary>Step 1: Harris Corner Detection — Detected corners overlaid on both images (red dots)</summary>
+      <img src="results/running_on_my_image/1/step1_harris.png" class="result-img" alt="Harris corners">
+      </details>
+
+      <details>
+      <summary>Step 2: Non-Maximal Suppression — Corners after NMS (window size = 20), only local maxima retained</summary>
+      <img src="results/running_on_my_image/1/step2_nms.png" class="result-img" alt="NMS corners">
+      </details>
+
+      <details>
+      <summary>Step 4.1: NNDR Histogram — Distribution of NNDR with threshold (L2 metric)</summary>
+      <img src="results/running_on_my_image/1/step4_nndr_histogram.png" class="result-img" alt="NNDR histogram">
+      </details>
+
+      <details>
+      <summary>Step 4.2: Feature Matches (Option 2) — Green lines = matches, red dots = unmatched</summary>
+      <img src="results/running_on_my_image/1/step4_matches.png" class="result-img" alt="Feature matches">
+      </details>
+
+      <details>
+      <summary>Step 4.3: Top 5 Best Matches — img1 feature | 1NN from img2 | 2NN from img2 (RGB patches)</summary>
+      <img src="results/running_on_my_image/1/step4_top5_matches.png" class="result-img" alt="Top 5 matches">
+      </details>
+
+    </div>
     </details>
 
+    <!-- Image Pair 2 -->
     <details>
-    <summary>Step 1: Harris Corner Detection — Detected corners overlaid on both images (red dots)</summary>
-    <img src="results/running_on_my_image/step1_harris.png" class="result-img" alt="Harris corners">
+    <summary>Image Pair 2</summary>
+    <div style="padding-left: 0.5rem;">
+
+      <details>
+      <summary>Step 0: Original Images — Two photos displayed side-by-side</summary>
+      <img src="results/running_on_my_image/2/step0_originals.png" class="result-img" alt="Original images">
+      </details>
+
+      <details>
+      <summary>Step 1: Harris Corner Detection — Detected corners overlaid on both images (red dots)</summary>
+      <img src="results/running_on_my_image/2/step1_harris.png" class="result-img" alt="Harris corners">
+      </details>
+
+      <details>
+      <summary>Step 2: Non-Maximal Suppression — Corners after NMS (window size = 20), only local maxima retained</summary>
+      <img src="results/running_on_my_image/2/step2_nms.png" class="result-img" alt="NMS corners">
+      </details>
+
+      <details>
+      <summary>Step 4.1: NNDR Histogram — Distribution of NNDR with threshold (L2 metric)</summary>
+      <img src="results/running_on_my_image/2/step4_nndr_histogram.png" class="result-img" alt="NNDR histogram">
+      </details>
+
+      <details>
+      <summary>Step 4.2: Feature Matches (Option 2) — Green lines = matches, red dots = unmatched</summary>
+      <img src="results/running_on_my_image/2/step4_matches.png" class="result-img" alt="Feature matches">
+      </details>
+
+      <details>
+      <summary>Step 4.3: Top 5 Best Matches — img1 feature | 1NN from img2 | 2NN from img2 (RGB patches)</summary>
+      <img src="results/running_on_my_image/2/step4_top5_matches.png" class="result-img" alt="Top 5 matches">
+      </details>
+
+    </div>
     </details>
 
-    <details>
-    <summary>Step 2: Non-Maximal Suppression — Corners after NMS (window size = 20), only local maxima retained</summary>
-    <img src="results/running_on_my_image/step2_nms.png" class="result-img" alt="NMS corners">
-    </details>
-
-    <details>
-    <summary>Step 4.1: NNDR Histogram — Distribution of nearest-neighbor distance ratios with threshold (L2 metric)</summary>
-    <img src="results/running_on_my_image/step4_nndr_histogram.png" class="result-img" alt="NNDR histogram">
-    </details>
-
-    <details>
-    <summary>Step 4.2: Feature Matches (Option 2) — Green lines = matches, red dots = unmatched</summary>
-    <img src="results/running_on_my_image/step4_matches.png" class="result-img" alt="Feature matches">
-    </details>
-
-    <details>
-    <summary>Step 4.3: Top 5 Best Matches — img1 feature | 1NN from img2 | 2NN from img2 (RGB patches)</summary>
-    <img src="results/running_on_my_image/step4_top5_matches.png" class="result-img" alt="Top 5 matches">
-    </details>
   </div>
   </details>
 
