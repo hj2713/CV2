@@ -96,10 +96,8 @@ Run all cells sequentially (Kernel → Restart & Run All).
 | Descriptor patch size       | 40×40 → 8×8     |
 | Descriptor dimensions       | 192 (8×8×3 RGB) |
 | Similarity metric           | L2 (Euclidean)  |
-| NNDR threshold              | 0.5 / 0.7       |
-| RANSAC `min_samples`        | 4               |
-| RANSAC `residual_threshold` | 4 px            |
-| RANSAC `max_trials`         | 2000            |
+| NNDR threshold              | 0.5             |
+
 
 ---
 
