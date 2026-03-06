@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HW3: Simple Structure from Motion — Himanshu Jhawar</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #fafafa;
+      color: #333;
+      line-height: 1.6;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+    h1 { font-size: 1.8rem; margin-bottom: 0.3rem; color: #1a1a1a; }
+    .subtitle { color: #666; font-size: 0.95rem; margin-bottom: 2rem; }
+    h2 {
+      font-size: 1.3rem;
+      color: #2c3e50;
+      margin: 2.5rem 0 0.5rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 2px solid #e0e0e0;
+    }
+    h3 {
+      font-size: 1.05rem;
+      color: #444;
+      margin: 1.5rem 0 0.5rem;
+    }
+    p, li { font-size: 0.92rem; margin-bottom: 0.5rem; }
+    ul { padding-left: 1.5rem; margin-bottom: 1rem; }
+    .info-box {
+      background: #f0f4f8;
+      border-left: 4px solid #4a90d9;
+      padding: 0.8rem 1rem;
+      border-radius: 4px;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+    }
+    table {
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 0.88rem;
+      width: 100%;
+    }
+    th, td {
+      padding: 0.5rem 0.8rem;
+      border: 1px solid #ddd;
+      text-align: left;
+    }
+    th { background: #f5f5f5; font-weight: 600; }
+    .result-img {
+      width: 100%;
+      border-radius: 6px;
+      border: 1px solid #e0e0e0;
+      margin: 0.5rem 0;
+    }
+    .img-caption {
+      text-align: center;
+      font-size: 0.82rem;
+      color: #777;
+      margin-bottom: 1rem;
+    }
+    .scene-box {
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    .three-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1rem;
+    }
+    code {
+      background: #f0f0f0;
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+      font-size: 0.85rem;
+    }
+    hr { border: none; border-top: 1px solid #eee; margin: 2rem 0; }
+    details {
+      margin: 1.5rem 0;
+    }
+    details summary {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #2c3e50;
+      cursor: pointer;
+      padding: 0.6rem 0;
+      border-bottom: 2px solid #e0e0e0;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    details summary::-webkit-details-marker { display: none; }
+    details summary::before {
+      content: '▶';
+      font-size: 0.8rem;
+      transition: transform 0.2s;
+      display: inline-block;
+    }
+    details[open] summary::before {
+      transform: rotate(90deg);
+    }
+    details details {
+      margin: 0.8rem 0;
+    }
+    details details summary {
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: #555;
+      padding: 0.4rem 0;
+      border-bottom: 1px solid #eee;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>HW3: Simple Structure from Motion</h1>
+  <p class="subtitle">
+    Himanshu Jhawar (hj2713)<br>
+    COMS4732W Computer Vision 2<br>
+    <strong>GitHub Repository:</strong> <a href="https://github.com/hj2713/CV2/tree/main/HW3" target="_blank" style="color: #4a90d9; text-decoration: none;">https://github.com/hj2713/CV2/tree/main/HW3</a>
+  </p>
+
+  <!-- ===== Overview ===== -->
+  <h2>Overview</h2>
+  <p>This project implements components of a simple Structure from Motion (SfM) pipeline that estimates correspondences, camera pose, and 3D scene points from a pair of images:</p>
+  <ul>
+    <li><strong>Step 1:</strong> Camera Intrinsics (Calculated from iPhone 15 Pro specifications)</li>
+    <li><strong>Step 2:</strong> Detecting SIFT Features (rotation + scale invariant)</li>
+    <li><strong>Step 3:</strong> Feature Matching using L2 distance and Nearest Neighbor Distance Ratio (NNDR)</li>
+    <li><strong>Step 4:</strong> RANSAC to estimate Rotation (R) and Translation (t) via Essential Matrix decomposition</li>
+    <li><strong>Step 5:</strong> Triangulating inliers to generate a 3D Sparse Point Cloud</li>
+  </ul>
+
+  <!-- ===== Hyperparameters & Configuration ===== -->
+  <h2>Selected Configuration Parameters</h2>
+  <table>
+    <tr><th>Parameter</th><th>Value</th></tr>
+    <tr><td>Random Seed</td><td><code>42</code></td></tr>
+    <tr><td>Camera Intrinsics Matrix (K)</td><td>
+      <code>
+        [[ 887.47, 0.00, 640.00 ],<br>
+         [ 0.00, 887.47, 480.00 ],<br>
+         [ 0.00, 0.00, 1.00 ]]
+       </code>
+    </td></tr>
+    <tr><td>SIFT Points Detected</td><td><code>1197</code> features in both images (max capped at 1200)</td></tr>
+    <tr><td>Feature Matching NNDR Threshold</td><td><code>0.8</code></td></tr>
+    <tr><td>RANSAC Number of Iterations</td><td><code>2000</code></td></tr>
+    <tr><td>RANSAC Epsilon (Sampson distance)</td><td><code>0.01</code></td></tr>
+  </table>
+
+  <hr>
+
+  <h2>Scene 1: Bookshelf Room</h2>
+
+  <!-- ===== Scene 1 Visualizations ===== -->
+  <details open>
+  <summary>Visualizations — Pipeline Steps</summary>
+  <div class="scene-box">
+
+    <details open>
+    <summary>Overview: Full Pipeline Grid</summary>
+    <img src="submission_images/step5_pipeline_grid.png" class="result-img" alt="Pipeline Grid">
+    </details>
+
+    <details>
+    <summary>Step 2: SIFT Features Detected</summary>
+    <img src="submission_images/step2_sift_keypoints.png" class="result-img" alt="SIFT Features">
+    </details>
+
+    <details>
+    <summary>Step 3: NNDR Histogram</summary>
+    <img src="submission_images/step3_feature_matching_nndr_histogram.png" class="result-img" alt="NNDR Histogram (threshold overlaid)">
+    </details>
+
+    <details>
+    <summary>Step 3: Top 5 Features Matched (Ranked by NNDR)</summary>
+    <img src="submission_images/step3_feature_matching_top5_nndr.png" class="result-img" alt="Top 5 SIFT Matches">
+    </details>
+
+    <details>
+    <summary>Step 3: Correspondences Before RANSAC</summary>
+    <img src="submission_images/step3_correspondences_before_ransac.png" class="result-img" alt="Correspondences Before RANSAC">
+    <p class="img-caption">Alternate view (with patches):</p>
+    <img src="submission_images/step3_feature_matching.png" class="result-img" alt="Matches Before RANSAC">
+    </details>
+
+    <details>
+    <summary>Step 4: RANSAC Convergence</summary>
+    <img src="submission_images/step4_ransac_convergence.png" class="result-img" alt="RANSAC best inlier count over iterations">
+    </details>
+
+    <details>
+    <summary>Step 4: Correspondences After RANSAC (Inliers Only)</summary>
+    <img src="submission_images/step4_correspondences_after_ransac.png" class="result-img" alt="Correspondences After RANSAC">
+    <p class="img-caption">Alternate view (with patches):</p>
+    <img src="submission_images/step4_feature_matching_after_ransac.png" class="result-img" alt="Matches After RANSAC">
+    </details>
+
+  </div>
+  </details>
+
+  <hr>
+
+  <!-- ===== User Action Required: 3D Point Cloud Screenshots ===== -->
+  <details open>
+  <summary>Outputs: 3D Sparse Point Cloud (Viser)</summary>
+  <div class="scene-box">
+
+
+    <details open>
+    <summary>Landmark 1</summary>
+    <img src="submission_images/landmark_1.png" class="result-img" alt="Landmark 1" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'100%\' height=\'250\'><rect width=\'100%\' height=\'100%\' fill=\'#e0e0e0\'/><text x=\'50%\' y=\'50%\' font-family=\'sans-serif\' font-size=\'16\' fill=\'#666\' text-anchor=\'middle\' dominant-baseline=\'middle\'>Missing Image: Please add landmark_1.png to submission_images/</text></svg>'">
+    <p class="img-caption">Cluster of reconstructed points matching the tall wooden bookshelf on the left side of the room.</p>
+    </details>
+
+    <details open>
+    <summary>Landmark 2</summary>
+    <img src="submission_images/landmark_2.png" class="result-img" alt="Landmark 2" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'100%\' height=\'250\'><rect width=\'100%\' height=\'100%\' fill=\'#e0e0e0\'/><text x=\'50%\' y=\'50%\' font-family=\'sans-serif\' font-size=\'16\' fill=\'#666\' text-anchor=\'middle\' dominant-baseline=\'middle\'>Missing Image: Please add landmark_2.png to submission_images/</text></svg>'">
+    <p class="img-caption">Reconstructed 3D geometry of the high-contrast blanket patterned over the bed in the center.</p>
+    </details>
+
+    <details open>
+    <summary>Landmark 3</summary>
+    <img src="submission_images/landmark_3.png" class="result-img" alt="Landmark 3" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'100%\' height=\'250\'><rect width=\'100%\' height=\'100%\' fill=\'#e0e0e0\'/><text x=\'50%\' y=\'50%\' font-family=\'sans-serif\' font-size=\'16\' fill=\'#666\' text-anchor=\'middle\' dominant-baseline=\'middle\'>Missing Image: Please add landmark_3.png to submission_images/</text></svg>'">
+    <p class="img-caption">Dense points accurately capturing the structure of the small wooden drawers and items on the right side.</p>
+    </details>
+
+    <details open>
+    <summary>Landmark 4</summary>
+    <img src="submission_images/landmark_4.png" class="result-img" alt="Landmark 4" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'100%\' height=\'250\'><rect width=\'100%\' height=\'100%\' fill=\'#e0e0e0\'/><text x=\'50%\' y=\'50%\' font-family=\'sans-serif\' font-size=\'16\' fill=\'#666\' text-anchor=\'middle\' dominant-baseline=\'middle\'>Missing Image: Please add landmark_4.png to submission_images/</text></svg>'">
+    <p class="img-caption">Points representing the edge of the large low table situated in front of the bed.</p>
+    </details>
+
+    <details open>
+    <summary>Landmark 5</summary>
+    <img src="submission_images/landmark_5.png" class="result-img" alt="Landmark 5" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'100%\' height=\'250\'><rect width=\'100%\' height=\'100%\' fill=\'#e0e0e0\'/><text x=\'50%\' y=\'50%\' font-family=\'sans-serif\' font-size=\'16\' fill=\'#666\' text-anchor=\'middle\' dominant-baseline=\'middle\'>Missing Image: Please add landmark_5.png to submission_images/</text></svg>'">
+    <p class="img-caption">Wider perspective viewing the full back-wall structure including plants and decor above the bed.</p>
+    </details>
+
+  </div>
+  </details>
+
+  <hr>
+
+  <h2>Scene 2: Stone Doorway</h2>
+
+  <!-- ===== Scene 2 Visualizations ===== -->
+  <details open>
+  <summary>Visualizations — Pipeline Steps</summary>
+  <div class="scene-box">
+
+    <details open>
+    <summary>Overview: Full Pipeline Grid</summary>
+    <img src="submission_images/scene2_step5_pipeline_grid.png" class="result-img" alt="Pipeline Grid">
+    </details>
+
+    <details>
+    <summary>Step 2: SIFT Features Detected</summary>
+    <img src="submission_images/scene2_step2_sift_features.png" class="result-img" alt="SIFT Features">
+    </details>
+
+    <details>
+    <summary>Step 3: NNDR Histogram</summary>
+    <img src="submission_images/scene2_step3_feature_matching_nndr_histogram.png" class="result-img" alt="NNDR Histogram (threshold overlaid)">
+    </details>
+
+    <details>
+    <summary>Step 3: Top 5 Features Matched (Ranked by NNDR)</summary>
+    <img src="submission_images/scene2_step3_feature_matching_top5_nndr.png" class="result-img" alt="Top 5 SIFT Matches">
+    </details>
+
+    <details>
+    <summary>Step 3: Correspondences Before RANSAC</summary>
+    <img src="submission_images/scene2_step5_0_correspondences_before_ransac.png" class="result-img" alt="Correspondences Before RANSAC">
+    </details>
+
+    <details>
+    <summary>Step 4: RANSAC Convergence</summary>
+    <img src="submission_images/scene2_step4_ransac_convergence.png" class="result-img" alt="RANSAC best inlier count over iterations">
+    </details>
+
+    <details>
+    <summary>Step 4: Correspondences After RANSAC (Inliers Only)</summary>
+    <img src="submission_images/scene2_step5_1_correspondences_after_ransac.png" class="result-img" alt="Correspondences After RANSAC">
+    </details>
+
+  </div>
+  </details>
+
+  <details open>
+  <summary>Outputs: 3D Sparse Point Cloud (Viser)</summary>
+  <div class="scene-box">
+
+    <details open>
+    <summary>Landmark 1</summary>
+    <img src="submission_images/scene2_visualization_1.png" class="result-img" alt="Landmark 1" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'100%\' height=\'250\'><rect width=\'100%\' height=\'100%\' fill=\'#e0e0e0\'/><text x=\'50%\' y=\'50%\' font-family=\'sans-serif\' font-size=\'16\' fill=\'#666\' text-anchor=\'middle\' dominant-baseline=\'middle\'>Missing Image: Please add scene2_visualization_1.png to submission_images/</text></svg>'">
+    <p class="img-caption">Wide contextual view showing both camera poses and the central dense point cluster representing the stone archway.</p>
+    </details>
+
+    <details open>
+    <summary>Landmark 2</summary>
+    <img src="submission_images/scene2_visualization_2.png" class="result-img" alt="Landmark 2" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'100%\' height=\'250\'><rect width=\'100%\' height=\'100%\' fill=\'#e0e0e0\'/><text x=\'50%\' y=\'50%\' font-family=\'sans-serif\' font-size=\'16\' fill=\'#666\' text-anchor=\'middle\' dominant-baseline=\'middle\'>Missing Image: Please add scene2_visualization_2.png to submission_images/</text></svg>'">
+    <p class="img-caption">Direct head-on view from Camera 1's perspective indicating accurately matched points along the stone pillars and steps.</p>
+    </details>
+
+    <details open>
+    <summary>Landmark 3</summary>
+    <img src="submission_images/scene2_visualization_3.png" class="result-img" alt="Landmark 3" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'100%\' height=\'250\'><rect width=\'100%\' height=\'100%\' fill=\'#e0e0e0\'/><text x=\'50%\' y=\'50%\' font-family=\'sans-serif\' font-size=\'16\' fill=\'#666\' text-anchor=\'middle\' dominant-baseline=\'middle\'>Missing Image: Please add scene2_visualization_3.png to submission_images/</text></svg>'">
+    <p class="img-caption">Top-down alternate angle showing the depth reconstruction of the stairs retreating into the doorway.</p>
+    </details>
+
+  </div>
+  </details>
+
+  <hr>
+  <p style="text-align:center; color:#999; font-size:0.8rem; margin-top:2rem;">
+    COMS4732W Computer Vision 2 · HW3 · Himanshu Jhawar (hj2713)
+  </p>
+
+</body>
+</html>
