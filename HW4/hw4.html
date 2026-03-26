@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HW4: Neural Radiance Fields — Himanshu Jhawar</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #fafafa;
+      color: #333;
+      line-height: 1.6;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+    h1 { font-size: 1.8rem; margin-bottom: 0.3rem; color: #1a1a1a; }
+    .subtitle { color: #666; font-size: 0.95rem; margin-bottom: 2rem; }
+    h2 {
+      font-size: 1.3rem;
+      color: #2c3e50;
+      margin: 2.5rem 0 0.5rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 2px solid #e0e0e0;
+    }
+    h3 { font-size: 1.05rem; color: #444; margin: 1.5rem 0 0.5rem; }
+    p, li { font-size: 0.95rem; margin-bottom: 0.5rem; }
+    ul { padding-left: 1.5rem; margin-bottom: 1rem; }
+    table {
+      border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; width: 100%;
+    }
+    th, td { padding: 0.5rem 0.8rem; border: 1px solid #ddd; text-align: left; }
+    th { background: #f5f5f5; font-weight: 600; }
+    .result-img-large { width: 100%; border-radius: 6px; border: 1px solid #e0e0e0; margin: 0.5rem 0; }
+    .result-img { width: 100%; border-radius: 6px; border: 1px solid #e0e0e0; margin: 0.5rem 0; object-fit: contain; }
+    .img-caption { text-align: center; font-size: 0.85rem; color: #777; margin-bottom: 1rem; margin-top: 0.5rem; }
+    .scene-box {
+      background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 1.5rem; margin: 1.5rem 0; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+    .four-col { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.5rem; }
+    code { background: #f0f0f0; padding: 0.15rem 0.4rem; border-radius: 3px; font-size: 0.85rem; }
+    hr { border: none; border-top: 1px solid #eee; margin: 2rem 0; }
+    details { margin: 1.5rem 0; }
+    details summary {
+      font-size: 1.3rem; font-weight: 600; color: #2c3e50; cursor: pointer; padding: 0.6rem 0; border-bottom: 2px solid #e0e0e0; list-style: none; display: flex; align-items: center; gap: 0.5rem;
+    }
+    details summary::-webkit-details-marker { display: none; }
+    details summary::before { content: '▶'; font-size: 0.8rem; transition: transform 0.2s; display: inline-block; }
+    details[open] summary::before { transform: rotate(90deg); }
+  </style>
+</head>
+<body>
+
+  <h1>HW4: Neural Radiance Fields (NeRF)</h1>
+  <p class="subtitle">
+    Himanshu Jhawar (hj2713)<br>
+    COMS4732W Computer Vision 2<br>
+    <strong>GitHub Repository:</strong> <a href="https://github.com/hj2713/CV2/tree/main/HW4" target="_blank" style="color: #4a90d9; text-decoration: none;">https://github.com/hj2713/CV2/tree/main/HW4</a>
+  </p>
+
+  <!-- ===== Part 1 ===== -->
+  <details open>
+  <summary>Part 1: Fit a Neural Field to a 2D Image</summary>
+  <div class="scene-box">
+    
+    <h3>Model Architecture Report</h3>
+    <ul>
+      <li><strong>Input:</strong> Normalized 2D pixel coordinates <code>(x, y)</code> ranging [0, 1].</li>
+      <li><strong>Positional Encoding:</strong> Maximum frequency <code>L=10</code>, generating a 42-dimensional input feature vector.</li>
+      <li><strong>MLP Backbone:</strong> 4 hidden layers. Each layer consists of <code>Linear(256) &rarr; ReLU</code>.</li>
+      <li><strong>Output Layer:</strong> <code>Linear(256, 3) &rarr; Sigmoid</code> mapping features to <code>(r, g, b)</code> pixel colors clamped to [0, 1].</li>
+      <li><strong>Optimizer:</strong> Adam optimizer with Learning Rate: <code>1e-2</code> (0.01).</li>
+      <li><strong>Task:</strong> Mean Squared Error over batches of 10,000 random pixels to memorize a static frame.</li>
+    </ul>
+
+    <h3>Training Progression Visualizations</h3>
+    <div class="two-col">
+      <div>
+        <p style="text-align: center; font-weight: 600;">Test Image 1 Progression</p>
+        <img src="output/phase1/image1_progression.png" class="result-img" alt="Image 1 Progression">
+      </div>
+      <div>
+        <p style="text-align: center; font-weight: 600;">Custom Image 2 Progression</p>
+        <img src="output/phase1/image2_progression.png" class="result-img" alt="Image 2 Progression">
+      </div>
+    </div>
+
+    <h3>Hyperparameter Tuning (Ablation Grid)</h3>
+    <p>A 2x2 grid analyzing network capacity. Positional Encoding <code>L</code> regulates how high-frequency sharp details the network can learn, whilst <code>width</code> dictates global memory capacity.</p>
+    <img src="output/phase1/image1_hyperparam_grid_search_result.png" class="result-img-large" alt="Hyperparam Search">
+    
+    <h3>Validation PSNR Curve</h3>
+    <p>Peak Signal to Noise Ratio graph representing algorithmic confidence converging cleanly above 30 dB.</p>
+    <div class="two-col">
+      <div>
+        <img src="output/phase1/image1_psnr_curve.png" class="result-img" alt="PSNR Image 1">
+        <p class="img-caption">Image 1 Validation Trajectory</p>
+      </div>
+      <div>
+        <img src="output/phase1/image2_psnr_curve.png" class="result-img" alt="PSNR Image 2">
+        <p class="img-caption">Image 2 Validation Trajectory</p>
+      </div>
+    </div>
+
+  </div>
+  </details>
+
+  <!-- ===== Part 2 ===== -->
+  <details open>
+  <summary>Part 2: Fit a Neural Radiance Field from Multi-view Images</summary>
+  <div class="scene-box">
+
+    <h3>Pipeline Implementation Details</h3>
+    <ul>
+      <li><strong>Camera Extrinsics & Ray Generation:</strong> Utilizing the provided <code>c2w</code> transforms and focal distances, physical rays are reverse-projected out of the sensor. The <code>RaysData</code> class precomputes millions of theoretical <code>ray_o</code> (Ray Origins) and <code>ray_d</code> (Ray Directions) into a unified PyTorch dataset pool for efficient 10,000-ray memory batching.</li>
+      <li><strong>Volume Sampling:</strong> <code>sample_along_rays</code> slices every theoretical ray line into exactly <code>64</code> finite distance fragments spanning the mathematical bounding box (near=2.0, far=6.0). By intentionally applying jitter algorithms offset noise across distance batches during training (perturb=True), the model avoids discrete depth over-fitting and establishes true continuous volume approximations.</li>
+      <li><strong>3D NeRF Architecture:</strong> An 8-layer deep MLP mapping full 3D coordinates. To bypass the "Dead ReLU" catastrophe over massive coordinates, implicit PyTorch PI multipliers were omitted during positional encodings. Due to exponential memory loss scaling with architectural depth, original geometric <code>xyz</code> encoding bypass coordinates are manually concatenated at Layer 5 (Skip Connection).</li>
+      <li><strong>View-Dependent Rendering:</strong> Density (&sigma;) remains direction invariant. The viewing direction <code>ray_d</code> vector is withheld entirely until the final structural block, wherein it merges with semantic features to uniquely map viewport-specific physical attributes like plastic shading glares across RGB pixels.</li>
+    </ul>
+
+    <h3>Ray Visualization (Viser Camera Intersections)</h3>
+    <img src="output/phase2/visualiser.png" class="result-img" style="max-width:600px; display:block; margin: 0 auto;" alt="Ray Tracing Viz">
+    <p class="img-caption">Confirming spherical origins converging physically through the origin of the Lego truck utilizing ~100 sampled rays.</p>
+
+    <h3>Training Progression Across Iterations</h3>
+    <p>Reconstructing the visual trajectory directly from validation snapshots evaluated heavily every 500 epochs.</p>
+    <div class="four-col">
+      <div>
+        <img src="output/phase3/val_step_1000.png" class="result-img">
+        <p class="img-caption">Epoch 1000</p>
+      </div>
+      <div>
+        <img src="output/phase3/val_step_2500.png" class="result-img">
+        <p class="img-caption">Epoch 2500</p>
+      </div>
+      <div>
+        <img src="output/phase3/val_step_4000.png" class="result-img">
+        <p class="img-caption">Epoch 4000</p>
+      </div>
+      <div>
+        <img src="output/phase3/val_step_6000.png" class="result-img">
+        <p class="img-caption">Epoch 6000</p>
+      </div>
+    </div>
+
+    <h3>6-Image Validation PSNR Metrics</h3>
+    <img src="output/phase3/training_curves.png" class="result-img-large" alt="Metric Curves">
+    <p class="img-caption">Targeting minimum > 23 PSNR accuracy across completely un-seen angles. Graph visualizes validation PSNR on the entire isolated 6-image validation set.</p>
+
+    <h3>Novel View Generation (Spherical Render)</h3>
+    <p>Loading weights off pure <code>train_3d</code> iterations to execute fully synthetic continuous 60-camera physical orbits utilizing <code>vis_orbit.py</code> mapping.</p>
+    <br>
+    <img src="output/phase3/lego_orbit.gif" class="result-img" style="max-width:400px; display:block; margin: 0 auto; box-shadow: 0px 4px 10px rgba(0,0,0,0.4);" alt="Rotating Lego Orbital GIF">
+    <p class="img-caption">100% Synthetic 360-Degree Continuous Novel Render.</p>
+
+  </div>
+  </details>
+
+  <hr>
+  <p style="text-align:center; color:#999; font-size:0.8rem; margin-top:2rem;">
+    COMS4732W Computer Vision 2 · HW4 · Himanshu Jhawar (hj2713)
+  </p>
+
+</body>
+</html>
