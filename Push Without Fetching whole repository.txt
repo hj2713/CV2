@@ -1,0 +1,25 @@
+# 1. Enter into main folder
+cd CV2
+
+# 2. Initialize a blank git repository
+git init
+
+# 3. Add your remote repository
+git remote add origin https://github.com/hj2713/CV2.git
+
+# 4. Fetch ONLY the commit history (depth 1) and explicitly block downloading ANY file contents (--filter=blob:none)
+git fetch --depth 1 --filter=blob:none origin main
+
+# 5. Enable sparse checkout to tell Git we only care about specific folders
+git sparse-checkout init --cone
+
+# 6. Tell Git we ONLY want to work with the HW5 folder 
+git sparse-checkout set HW5
+
+# 7. Checkout the main branch (since we set sparse-checkout to HW5, it won't download the massive files from other folders!)
+git checkout -b main origin/main
+
+# 8. Add, commit, and push!
+git add HW5
+git commit -m "Add HW5 report and outputs"
+git push origin main
