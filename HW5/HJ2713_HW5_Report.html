@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HW5: The Power of Diffusion Models & Flow Matching — Himanshu Jhawar</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #fafafa;
+      color: #333;
+      line-height: 1.6;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+    h1 { font-size: 1.8rem; margin-bottom: 0.3rem; color: #1a1a1a; }
+    .subtitle { color: #666; font-size: 0.95rem; margin-bottom: 2rem; }
+    h2 {
+      font-size: 1.3rem;
+      color: #2c3e50;
+      margin: 2.5rem 0 0.5rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 2px solid #e0e0e0;
+    }
+    h3 {
+      font-size: 1.05rem;
+      color: #444;
+      margin: 1.5rem 0 0.5rem;
+    }
+    p, li { font-size: 0.92rem; margin-bottom: 0.5rem; }
+    ul { padding-left: 1.5rem; margin-bottom: 1rem; }
+    .info-box {
+      background: #f0f4f8;
+      border-left: 4px solid #4a90d9;
+      padding: 0.8rem 1rem;
+      border-radius: 4px;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+    }
+    .result-img {
+      width: 100%;
+      border-radius: 6px;
+      border: 1px solid #e0e0e0;
+      margin: 0.5rem 0;
+    }
+    .img-caption {
+      text-align: center;
+      font-size: 0.82rem;
+      color: #777;
+      margin-bottom: 1rem;
+    }
+    .scene-box {
+      background: #fff;
+      border: 1px solid #e8e8e8;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    .three-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1rem;
+    }
+    .six-col {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 0.5rem;
+    }
+    code {
+      background: #f0f0f0;
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+      font-size: 0.85rem;
+    }
+    hr { border: none; border-top: 1px solid #eee; margin: 2rem 0; }
+    details {
+      margin: 1.5rem 0;
+    }
+    details summary {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #2c3e50;
+      cursor: pointer;
+      padding: 0.6rem 0;
+      border-bottom: 2px solid #e0e0e0;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    details summary::-webkit-details-marker { display: none; }
+    details summary::before {
+      content: '▶';
+      font-size: 0.8rem;
+      transition: transform 0.2s;
+      display: inline-block;
+    }
+    details[open] > summary::before {
+      transform: rotate(90deg);
+    }
+    details details {
+      margin: 0.8rem 0;
+    }
+    details details summary {
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: #555;
+      padding: 0.4rem 0;
+      border-bottom: 1px solid #eee;
+    }
+    .main-summary {
+      font-size: 1.5rem; 
+      margin-top: 1.5rem; 
+      margin-bottom: 1rem; 
+      color: #2c3e50; 
+      font-weight: bold; 
+      padding-bottom: 0.5rem; 
+      border-bottom: 2px solid #e0e0e0;
+      text-transform: uppercase;
+    }
+    .btn-toggle {
+      background: #fff;
+      border: 1px solid #d0d7de;
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #24292f;
+      transition: all 0.2s;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+    .btn-toggle:hover {
+      background: #f3f4f6;
+      border-color: #bcc3cd;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>HW5: The Power of Diffusion Models & Flow Matching</h1>
+  <p class="subtitle">
+    Himanshu Jhawar (hj2713)<br>
+    COMS4732W Computer Vision 2<br>
+    <strong>GitHub:</strong> <a href="https://github.com/hj2713/CV2/tree/main/HW5" target="_blank" style="color: #4a90d9; text-decoration: none;">github.com/hj2713/CV2/tree/main/HW5</a>
+  </p>
+
+  <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: -1.5rem; margin-bottom: 1rem;">
+    <button class="btn-toggle" onclick="document.querySelectorAll('details').forEach(d => d.open = true)">Expand All</button>
+    <button class="btn-toggle" onclick="document.querySelectorAll('details').forEach(d => d.open = false)">Collapse All</button>
+  </div>
+
+  <details open>
+  <summary class="main-summary">Part A: The Power of Diffusion Models</summary>
+  <div>
+  
+  <details open>
+    <summary>1.0 Setup and Prompt Embeddings</summary>
+    <div class="scene-box">
+      <p>Testing prompts with two different num_inference_steps values.</p>
+      <h4>Inference Steps: Set 1</h4>
+      <div class="two-col">
+        <div>
+          <p class="img-caption">A stylish hipster barista in a cozy café, pouring latte art, warm tones, candid photography</p>
+          <img src="Part_A_Output_Images/cell_16_out_2_img_0_A_stylish_hipster_barista_in_a_cozy_caf___pouring_latte_art__warm_tones__candid_photography.png" class="result-img">
+        </div>
+        <div>
+          <p class="img-caption">A high detail photo of a dog, expressive eyes, soft fur texture, natural outdoor setting</p>
+          <img src="Part_A_Output_Images/cell_16_out_2_img_1_A_high_detail_photo_of_a_dog__expressive_eyes__soft_fur_texture__natural_outdoor_setting.png" class="result-img">
+        </div>
+      </div>
+      <div class="two-col">
+        <div>
+          <p class="img-caption">An oil painting of people gathered around a campfire at night, glowing firelight, deep shadows, storytelling mood</p>
+          <img src="Part_A_Output_Images/cell_16_out_2_img_2_An_oil_painting_of_people_gathered_around_a_campfire_at_night__glowing_firelight__deep_shadows__storytelling_mood.png" class="result-img">
+        </div>
+        <div>
+          <p class="img-caption">An oil painting of an elderly man, expressive wrinkles, dramatic lighting, classical portrait style</p>
+          <img src="Part_A_Output_Images/cell_16_out_2_img_3_An_oil_painting_of_an_elderly_man__expressive_wrinkles__dramatic_lighting__classical_portrait_style.png" class="result-img">
+        </div>
+      </div>
+      
+      <h4>Inference Steps: Set 2</h4>
+      <div class="two-col">
+        <div><img src="Part_A_Output_Images/cell_16_out_3_img_0_A_stylish_hipster_barista_in_a_cozy_caf___pouring_latte_art__warm_tones__candid_photography.png" class="result-img"></div>
+        <div><img src="Part_A_Output_Images/cell_16_out_3_img_1_A_high_detail_photo_of_a_dog__expressive_eyes__soft_fur_texture__natural_outdoor_setting.png" class="result-img"></div>
+        <div><img src="Part_A_Output_Images/cell_16_out_3_img_2_An_oil_painting_of_people_gathered_around_a_campfire_at_night__glowing_firelight__deep_shadows__storytelling_mood.png" class="result-img"></div>
+        <div><img src="Part_A_Output_Images/cell_16_out_3_img_3_An_oil_painting_of_an_elderly_man__expressive_wrinkles__dramatic_lighting__classical_portrait_style.png" class="result-img"></div>
+      </div>
+    </div>
+  </details>
+
+  <details open>
+    <summary>1.1 Forward Process</summary>
+    <div class="scene-box">
+      <p>Campanile image at varying noise levels.</p>
+      <div class="three-col">
+        <div>
+          <p class="img-caption">t=250</p>
+          <img src="Part_A_Output_Images/cell_23_out_0_img_0_noisy_t_250.png" class="result-img" alt="Forward 250">
+        </div>
+        <div>
+          <p class="img-caption">t=500</p>
+          <img src="Part_A_Output_Images/cell_23_out_1_img_0_noisy_t_500.png" class="result-img" alt="Forward 500">
+        </div>
+        <div>
+          <p class="img-caption">t=750</p>
+          <img src="Part_A_Output_Images/cell_23_out_2_img_0_noisy_t_750.png" class="result-img" alt="Forward 750">
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <details open>
+    <summary>1.2 Classical Denoising</summary>
+    <div class="scene-box">
+      <p>Gaussian blur denoising results on the noisy Campanile images.</p>
+      <div class="two-col">
+        <div><p class="img-caption">t=250 Noisy</p><img src="Part_A_Output_Images/cell_25_out_0_img_0_t___250.png" class="result-img"></div>
+        <div><p class="img-caption">Gaussian Denoised</p><img src="Part_A_Output_Images/cell_25_out_0_img_1_gaussian.png" class="result-img"></div>
+      </div>
+      <div class="two-col">
+        <div><p class="img-caption">t=500 Noisy</p><img src="Part_A_Output_Images/cell_25_out_1_img_0_t___500.png" class="result-img"></div>
+        <div><p class="img-caption">Gaussian Denoised</p><img src="Part_A_Output_Images/cell_25_out_1_img_1_gaussian.png" class="result-img"></div>
+      </div>
+      <div class="two-col">
+        <div><p class="img-caption">t=750 Noisy</p><img src="Part_A_Output_Images/cell_25_out_2_img_0_t___750.png" class="result-img"></div>
+        <div><p class="img-caption">Gaussian Denoised</p><img src="Part_A_Output_Images/cell_25_out_2_img_1_gaussian.png" class="result-img"></div>
+      </div>
+    </div>
+  </details>
+
+  <details open>
+    <summary>1.3 One-Step Denoising</summary>
+    <div class="scene-box">
+      <p>UNet one-step denoising of the Campanile.</p>
+      
+      <div class="three-col">
+        <div><p class="img-caption">Original</p><img src="Part_A_Output_Images/cell_27_out_0_img_0_original.png" class="result-img"></div>
+        <div><p class="img-caption">Noisy (t=250)</p><img src="Part_A_Output_Images/cell_27_out_0_img_1_noisy_t_250.png" class="result-img"></div>
+        <div><p class="img-caption">Clean Estimate</p><img src="Part_A_Output_Images/cell_27_out_0_img_2_clean_estimate_t_250.png" class="result-img"></div>
+      </div>
+      <div class="three-col">
+        <div><p class="img-caption">Original</p><img src="Part_A_Output_Images/cell_27_out_1_img_0_original.png" class="result-img"></div>
+        <div><p class="img-caption">Noisy (t=500)</p><img src="Part_A_Output_Images/cell_27_out_1_img_1_noisy_t_500.png" class="result-img"></div>
+        <div><p class="img-caption">Clean Estimate</p><img src="Part_A_Output_Images/cell_27_out_1_img_2_clean_estimate_t_500.png" class="result-img"></div>
+      </div>
+      <div class="three-col">
+        <div><p class="img-caption">Original</p><img src="Part_A_Output_Images/cell_27_out_2_img_0_original.png" class="result-img"></div>
+        <div><p class="img-caption">Noisy (t=750)</p><img src="Part_A_Output_Images/cell_27_out_2_img_1_noisy_t_750.png" class="result-img"></div>
+        <div><p class="img-caption">Clean Estimate</p><img src="Part_A_Output_Images/cell_27_out_2_img_2_clean_estimate_t_750.png" class="result-img"></div>
+      </div>
+
+    </div>
+  </details>
+
+  <details open>
+    <summary>1.4 Iterative Denoising</summary>
+    <div class="scene-box">
+      <p>Iterative denoising loop visualization and comparison.</p>
+      <div class="two-col" style="margin-top: 1rem;">
+        <div>
+          <p class="img-caption">Original</p>
+          <img src="Part_A_Output_Images/cell_34_out_0_img_0_Original.png" class="result-img">
+        </div>
+        <div>
+          <p class="img-caption">Clean (Iterative)</p>
+          <img src="Part_A_Output_Images/cell_34_out_0_img_1_clean.png" class="result-img">
+        </div>
+        <div>
+          <p class="img-caption">Clean (1-Step)</p>
+          <img src="Part_A_Output_Images/cell_34_out_0_img_2_clean_1_step.png" class="result-img">
+        </div>
+        <div>
+          <p class="img-caption">Gaussian</p>
+          <img src="Part_A_Output_Images/cell_34_out_0_img_3_gaussian.png" class="result-img">
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <details open>
+    <summary>1.5 Diffusion Model Sampling</summary>
+    <div class="scene-box">
+      <p>Sampling from Scratch</p>
+      <div style="display:flex; overflow-x:auto; gap: 10px;">
+        <div style="min-width: 150px;"><p class="img-caption">Sample 1</p><img src="Part_A_Output_Images/cell_36_out_1_img_0_Sample_1.png" class="result-img"></div>
+        <div style="min-width: 150px;"><p class="img-caption">Sample 2</p><img src="Part_A_Output_Images/cell_36_out_1_img_1_Sample_2.png" class="result-img"></div>
+        <div style="min-width: 150px;"><p class="img-caption">Sample 3</p><img src="Part_A_Output_Images/cell_36_out_1_img_2_Sample_3.png" class="result-img"></div>
+        <div style="min-width: 150px;"><p class="img-caption">Sample 4</p><img src="Part_A_Output_Images/cell_36_out_1_img_3_Sample_4.png" class="result-img"></div>
+        <div style="min-width: 150px;"><p class="img-caption">Sample 5</p><img src="Part_A_Output_Images/cell_36_out_1_img_4_Sample_5.png" class="result-img"></div>
+      </div>
+    </div>
+  </details>
+
+  <details open>
+    <summary>1.6 Classifier-Free Guidance</summary>
+    <div class="scene-box">
+      <p>CFG Sampling from Scratch</p>
+      <div style="display:flex; overflow-x:auto; gap: 10px;">
+        <div style="min-width: 150px;"><p class="img-caption">Sample 1</p><img src="Part_A_Output_Images/cell_39_out_1_img_0_CFG_Sample_1.png" class="result-img"></div>
+        <div style="min-width: 150px;"><p class="img-caption">Sample 2</p><img src="Part_A_Output_Images/cell_39_out_1_img_1_CFG_Sample_2.png" class="result-img"></div>
+        <div style="min-width: 150px;"><p class="img-caption">Sample 3</p><img src="Part_A_Output_Images/cell_39_out_1_img_2_CFG_Sample_3.png" class="result-img"></div>
+        <div style="min-width: 150px;"><p class="img-caption">Sample 4</p><img src="Part_A_Output_Images/cell_39_out_1_img_3_CFG_Sample_4.png" class="result-img"></div>
+        <div style="min-width: 150px;"><p class="img-caption">Sample 5</p><img src="Part_A_Output_Images/cell_39_out_1_img_4_CFG_Sample_5.png" class="result-img"></div>
+      </div>
+    </div>
+  </details>
+
+  <details open>
+    <summary>1.7 Image Translation (SDEdit)</summary>
+    <div class="scene-box">
+      
+      <details open>
+        <summary>1.7.0 Campanile & Own Image Edits (SDEdit)</summary>
+        <p>Translating to the natural manifold.</p>
+        <h4>Campanile</h4>
+        <div class="six-col">
+          <div><p class="img-caption">t=1</p><img src="Part_A_Output_Images/cell_45_out_1_img_0_i_start_1.png" class="result-img"></div>
+          <div><p class="img-caption">t=3</p><img src="Part_A_Output_Images/cell_45_out_1_img_1_i_start_3.png" class="result-img"></div>
+          <div><p class="img-caption">t=5</p><img src="Part_A_Output_Images/cell_45_out_1_img_2_i_start_5.png" class="result-img"></div>
+          <div><p class="img-caption">t=7</p><img src="Part_A_Output_Images/cell_45_out_1_img_3_i_start_7.png" class="result-img"></div>
+          <div><p class="img-caption">t=10</p><img src="Part_A_Output_Images/cell_45_out_1_img_4_i_start_10.png" class="result-img"></div>
+          <div><p class="img-caption">t=20</p><img src="Part_A_Output_Images/cell_45_out_1_img_5_i_start_20.png" class="result-img"></div>
+        </div>
+        <h4>Own Image 1</h4>
+        <div style="max-width: 200px; margin-bottom: 1rem;"><p class="img-caption">Original</p><img src="Part_A_Output_Images/cell_43_out_1_img_0_img_0.png" class="result-img"></div>
+        <div class="six-col">
+          <div><p class="img-caption">t=1</p><img src="Part_A_Output_Images/cell_45_out_2_img_0_i_start_1.png" class="result-img"></div>
+          <div><p class="img-caption">t=3</p><img src="Part_A_Output_Images/cell_45_out_2_img_1_i_start_3.png" class="result-img"></div>
+          <div><p class="img-caption">t=5</p><img src="Part_A_Output_Images/cell_45_out_2_img_2_i_start_5.png" class="result-img"></div>
+          <div><p class="img-caption">t=7</p><img src="Part_A_Output_Images/cell_45_out_2_img_3_i_start_7.png" class="result-img"></div>
+          <div><p class="img-caption">t=10</p><img src="Part_A_Output_Images/cell_45_out_2_img_4_i_start_10.png" class="result-img"></div>
+          <div><p class="img-caption">t=20</p><img src="Part_A_Output_Images/cell_45_out_2_img_5_i_start_20.png" class="result-img"></div>
+        </div>
+        <h4>Own Image 2</h4>
+        <div style="max-width: 200px; margin-bottom: 1rem;"><p class="img-caption">Original</p><img src="Part_A_Output_Images/cell_43_out_3_img_0_img_0.png" class="result-img"></div>
+        <div class="six-col">
+          <div><p class="img-caption">t=1</p><img src="Part_A_Output_Images/cell_45_out_3_img_0_i_start_1.png" class="result-img"></div>
+          <div><p class="img-caption">t=3</p><img src="Part_A_Output_Images/cell_45_out_3_img_1_i_start_3.png" class="result-img"></div>
+          <div><p class="img-caption">t=5</p><img src="Part_A_Output_Images/cell_45_out_3_img_2_i_start_5.png" class="result-img"></div>
+          <div><p class="img-caption">t=7</p><img src="Part_A_Output_Images/cell_45_out_3_img_3_i_start_7.png" class="result-img"></div>
+          <div><p class="img-caption">t=10</p><img src="Part_A_Output_Images/cell_45_out_3_img_4_i_start_10.png" class="result-img"></div>
+          <div><p class="img-caption">t=20</p><img src="Part_A_Output_Images/cell_45_out_3_img_5_i_start_20.png" class="result-img"></div>
+        </div>
+      </details>
+
+      <details open>
+        <summary>1.7.1 Web & Hand-Drawn Image Edits</summary>
+        <h4>Web Image Edits</h4>
+        <div style="max-width: 200px; margin-bottom: 1rem;"><p class="img-caption">Original</p><img src="Part_A_Output_Images/cell_47_out_1_img_0_img_0.png" class="result-img"></div>
+        <div class="six-col">
+          <div><img src="Part_A_Output_Images/cell_48_out_1_img_0_1.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_48_out_1_img_1_3.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_48_out_1_img_2_5.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_48_out_1_img_3_7.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_48_out_1_img_4_10.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_48_out_1_img_5_20.png" class="result-img"></div>
+        </div>
+        <h4>Hand-Drawn Image 1</h4>
+        <div style="max-width: 200px; margin-bottom: 1rem;"><p class="img-caption">Original</p><img src="Part_A_Output_Images/cell_50_out_2_img_0_img_0.png" class="result-img"></div>
+        <div class="six-col">
+          <div><img src="Part_A_Output_Images/cell_52_out_1_img_0_i_start_1.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_52_out_1_img_1_i_start_3.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_52_out_1_img_2_i_start_5.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_52_out_1_img_3_i_start_7.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_52_out_1_img_4_i_start_10.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_52_out_1_img_5_i_start_20.png" class="result-img"></div>
+        </div>
+        <h4>Hand-Drawn Image 2</h4>
+        <div style="max-width: 200px; margin-bottom: 1rem;"><p class="img-caption">Original</p><img src="Part_A_Output_Images/cell_51_out_2_img_0_img_0.png" class="result-img"></div>
+        <div class="six-col">
+          <div><img src="Part_A_Output_Images/cell_52_out_3_img_0_i_start_1.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_52_out_3_img_1_i_start_3.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_52_out_3_img_2_i_start_5.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_52_out_3_img_3_i_start_7.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_52_out_3_img_4_i_start_10.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_52_out_3_img_5_i_start_20.png" class="result-img"></div>
+        </div>
+      </details>
+      
+      <details open>
+        <summary>1.7.2 Inpainting</summary>
+        <p>Replacing masked regions with generated content.</p>
+        <h4>Campanile</h4>
+        <div class="two-col">
+            <div><p class="img-caption">Original</p><img src="Part_A_Output_Images/cell_56_out_0_img_0_Original.png" class="result-img"></div>
+            <div><p class="img-caption">Mask</p><img src="Part_A_Output_Images/cell_56_out_0_img_1_Mask__white___edit_.png" class="result-img"></div>
+            <div><p class="img-caption">Hole to Fill</p><img src="Part_A_Output_Images/cell_56_out_0_img_2_Editable_Region.png" class="result-img"></div>
+            <div><p class="img-caption">Preserved</p><img src="Part_A_Output_Images/cell_56_out_0_img_3_Preserved_Region.png" class="result-img"></div>
+            <div><p class="img-caption">Inpainted</p><img src="Part_A_Output_Images/cell_57_out_0_img_2_Inpainted.png" class="result-img"></div>
+        </div>
+        <h4>Custom Images</h4>
+        <div class="three-col">
+            <div><p class="img-caption">Original</p><img src="Part_A_Output_Images/cell_59_out_0_img_0_web_im1_Original.png" class="result-img"></div>
+            <div><p class="img-caption">Mask</p><img src="Part_A_Output_Images/cell_59_out_0_img_1_web_im1_Mask__white___edit_.png" class="result-img"></div>
+            <div><p class="img-caption">Inpainted</p><img src="Part_A_Output_Images/cell_59_out_0_img_2_web_im1_Inpainted.png" class="result-img"></div>
+        </div>
+        <div class="three-col">
+            <div><p class="img-caption">Original</p><img src="Part_A_Output_Images/cell_59_out_1_img_0_web_im2_Original.png" class="result-img"></div>
+            <div><p class="img-caption">Mask</p><img src="Part_A_Output_Images/cell_59_out_1_img_1_web_im2_Mask__white___edit_.png" class="result-img"></div>
+            <div><p class="img-caption">Inpainted</p><img src="Part_A_Output_Images/cell_59_out_1_img_2_web_im2_Inpainted.png" class="result-img"></div>
+        </div>
+      </details>
+      
+      <details open>
+        <summary>1.7.3 Text-Guided Translation</summary>
+        <p>Guiding the SDEdit projection using a text prompt:<br>
+        <strong>"A stylish hipster barista in a cozy café, pouring latte art, warm tones, candid photography"</strong></p>
+        <h4>Campanile</h4>
+        <div style="max-width: 200px; margin-bottom: 1rem;"><p class="img-caption">Original</p><img src="Part_A_Output_Images/cell_62_out_0_img_0_Test_img.png" class="result-img"></div>
+        <div class="six-col">
+          <div><img src="Part_A_Output_Images/cell_63_out_1_img_0_i_1.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_63_out_1_img_1_i_3.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_63_out_1_img_2_i_5.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_63_out_1_img_3_i_7.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_63_out_1_img_4_i_10.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_63_out_1_img_5_i_20.png" class="result-img"></div>
+        </div>
+        <h4>Custom Image 1</h4>
+        <div style="max-width: 200px; margin-bottom: 1rem;"><p class="img-caption">Original</p><img src="Part_A_Output_Images/cell_62_out_0_img_1_Own_Img_1.png" class="result-img"></div>
+        <div class="six-col">
+          <div><img src="Part_A_Output_Images/cell_63_out_3_img_0_i_1.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_63_out_3_img_1_i_3.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_63_out_3_img_2_i_5.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_63_out_3_img_3_i_7.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_63_out_3_img_4_i_10.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_63_out_3_img_5_i_20.png" class="result-img"></div>
+        </div>
+        <h4>Custom Image 2</h4>
+        <div style="max-width: 200px; margin-bottom: 1rem;"><p class="img-caption">Original</p><img src="Part_A_Output_Images/cell_62_out_0_img_2_Own_Img_2.png" class="result-img"></div>
+        <div class="six-col">
+          <div><img src="Part_A_Output_Images/cell_63_out_5_img_0_i_1.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_63_out_5_img_1_i_3.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_63_out_5_img_2_i_5.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_63_out_5_img_3_i_7.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_63_out_5_img_4_i_10.png" class="result-img"></div>
+          <div><img src="Part_A_Output_Images/cell_63_out_5_img_5_i_20.png" class="result-img"></div>
+        </div>
+      </details>
+
+    </div>
+  </details>
+
+  <details open>
+    <summary>1.8 Visual Anagrams</summary>
+    <div class="scene-box">
+      <p>Optical illusions created by combining normal and flipped noise estimates.</p>
+      <div class="two-col">
+        <div>
+          <p class="img-caption"><strong>Anagram 1</strong><br><em>Upright:</em> An oil painting of an elderly man, expressive wrinkles, dramatic lighting, classical portrait style<br><em>Flipped:</em> An oil painting of people gathered around a campfire at night, glowing firelight, deep shadows, storytelling mood</p>
+          <img src="Part_A_Output_Images/cell_67_out_1_img_0_img_0.png" class="result-img" alt="Anagram 1 - View 1">
+          <img src="Part_A_Output_Images/cell_67_out_3_img_0_img_0.png" class="result-img" alt="Anagram 1 - View 2">
+        </div>
+        <div>
+          <p class="img-caption"><strong>Anagram 2</strong><br><em>Upright:</em> A futuristic rocket ship launching into space, dramatic smoke, flames, dynamic angle<br><em>Flipped:</em> A realistic pencil illustration of a pencil, fine shading, minimal composition</p>
+          <img src="Part_A_Output_Images/cell_69_out_1_img_0_img_0.png" class="result-img" alt="Anagram 2 - View 1">
+          <img src="Part_A_Output_Images/cell_69_out_3_img_0_img_0.png" class="result-img" alt="Anagram 2 - View 2">
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <details open>
+    <summary>1.9 Factorized Diffusion (Hybrid Images)</summary>
+    <div class="scene-box">
+      <p>Hybrid images created by combining high frequencies from one noise estimate and low frequencies from another.</p>
+      <div class="two-col">
+        <div>
+          <p class="img-caption" style="text-align:left;"><strong>--- old_man_campfire hybrid ---</strong><br><em>Low-frequency prompt:</em> An oil painting of an elderly man, expressive wrinkles, dramatic lighting, classical portrait style<br><em>High-frequency prompt:</em> An oil painting of people gathered around a campfire at night, glowing firelight, deep shadows, storytelling mood</p>
+          <img src="Part_A_Output_Images/cell_73_out_1_img_0_img_0.png" class="result-img" alt="Hybrid Image 1">
+        </div>
+        <div>
+          <p class="img-caption" style="text-align:left;"><strong>--- skull_waterfalls hybrid ---</strong><br><em>Low-frequency prompt:</em> A lithograph of a human skull, scientific illustration, fine etched lines, monochrome<br><em>High-frequency prompt:</em> A detailed lithograph of cascading waterfalls, intricate linework, vintage illustration style</p>
+          <img src="Part_A_Output_Images/cell_73_out_3_img_0_img_0.png" class="result-img" alt="Hybrid Image 2">
+        </div>
+      </div>
+    </div>
+  </details>
+
+  </div>
+  </details>
+
+  <hr>
+
+  <!-- ============================================== -->
+  <!-- PART B: Flow Matching from Scratch             -->
+  <!-- ============================================== -->
+  <details open>
+  <summary class="main-summary">Part B: Flow Matching from Scratch</summary>
+  <div>
+
+  <details open>
+    <summary>1.2 Using the UNet to Train a Denoiser</summary>
+    <div class="scene-box">
+      
+      <details open>
+        <summary>1.2 Noising Process Visualization</summary>
+        <p>Visualization of different noise scales applied to MNIST digits.</p>
+        <img src="Part_B_Output_Images/1.2.png" class="result-img" alt="Noising Process Visualization">
+      </details>
+
+      <details>
+        <summary>1.2.1 Training the Denoiser</summary>
+        <div class="two-col">
+          <div>
+            <p class="img-caption">Training Loss Curve</p>
+            <img src="Part_B_Output_Images/1.2.1_training_curve.png" class="result-img" alt="1.2.1 Training Curve">
+          </div>
+          <div>
+            <p class="img-caption">Sample Results (Epoch 1)</p>
+            <img src="Part_B_Output_Images/1.2.1_epoch1.png" class="result-img" alt="1.2.1 Epoch 1">
+          </div>
+        </div>
+        <p class="img-caption">Sample Results (Epoch 5)</p>
+        <img src="Part_B_Output_Images/1.2.1_epoch5.png" class="result-img" alt="1.2.1 Epoch 5">
+      </details>
+
+      <details>
+        <summary>1.2.2 Out-of-Distribution Testing</summary>
+        <p>Testing the denoiser on different noise levels not seen during training.</p>
+        <img src="Part_B_Output_Images/1.2.2.png" class="result-img" alt="Out-of-Distribution Testing">
+      </details>
+
+      <details>
+        <summary>1.2.3 Denoising Pure Noise</summary>
+        <p>Training a model to map pure noise to the image manifold.</p>
+        <div class="two-col">
+          <div>
+            <p class="img-caption">Training Loss Curve (Pure Noise)</p>
+            <img src="Part_B_Output_Images/1.2.3_training_curve.png" class="result-img" alt="1.2.3 Training Curve">
+          </div>
+          <div>
+            <p class="img-caption">Sample Results (Epoch 1)</p>
+            <img src="Part_B_Output_Images/1.2.3_epoch1.png" class="result-img" alt="1.2.3 Epoch 1">
+          </div>
+        </div>
+        <p class="img-caption">Sample Results (Epoch 5)</p>
+        <img src="Part_B_Output_Images/1.2.3_epoch5.png" class="result-img" alt="1.2.3 Epoch 5">
+        <div class="info-box">
+          <strong>Observation on Patterns:</strong> When denoising pure noise with an MSE loss objective, the model often outputs shapes resembling the average or "centroid" of the dataset. For MNIST, these patterns look like blurry averages of overlapping digits, since the model attempts to minimize the distance to all possible targets simultaneously.
+        </div>
+      </details>
+
+    </div>
+  </details>
+
+  <details open>
+    <summary>2.0 Time-Conditioned Flow Matching</summary>
+    <div class="scene-box">
+      
+      <details open>
+        <summary>2.2 Training the Time-Conditioned UNet</summary>
+        <p class="img-caption">Training Loss</p>
+        <img src="Part_B_Output_Images/2.2_training_loss.png" class="result-img" alt="Time-Conditioned Training Loss" style="max-width: 600px; margin: 0 auto; display: block;">
+      </details>
+
+      <details open>
+        <summary>2.3 Sampling Time-Conditioned Model</summary>
+        <div class="three-col">
+          <div>
+            <p class="img-caption">Epoch 1</p>
+            <img src="Part_B_Output_Images/2.2_epoch1.png" class="result-img" alt="Time-Conditioned Epoch 1">
+          </div>
+          <div>
+            <p class="img-caption">Epoch 5</p>
+            <img src="Part_B_Output_Images/2.2_epoch5.png" class="result-img" alt="Time-Conditioned Epoch 5">
+          </div>
+          <div>
+            <p class="img-caption">Epoch 10</p>
+            <img src="Part_B_Output_Images/2.2_epoch10.png" class="result-img" alt="Time-Conditioned Epoch 10">
+          </div>
+        </div>
+        <p class="img-caption">Additional Sampling (Epoch 10)</p>
+        <img src="Part_B_Output_Images/2.3.png" class="result-img" alt="Additional Time-Conditioned Sampling" style="max-width: 400px; margin: 0 auto; display: block;">
+      </details>
+
+    </div>
+  </details>
+
+  <details open>
+    <summary>2.4 Class-Conditioned Flow Matching</summary>
+    <div class="scene-box">
+      
+      <details open>
+        <summary>2.5 Training the Class-Conditioned UNet</summary>
+        <p class="img-caption">Training Loss</p>
+        <img src="Part_B_Output_Images/2.5_training_loss.png" class="result-img" alt="Class-Conditioned Training Loss" style="max-width: 600px; margin: 0 auto; display: block;">
+      </details>
+
+      <details open>
+        <summary>2.6 Sampling Class-Conditioned Model</summary>
+        <p>Using classifier-free guidance (&gamma; = 5.0) to sample 4 instances of each digit.</p>
+        <div class="three-col">
+          <div>
+            <p class="img-caption">Epoch 1</p>
+            <img src="Part_B_Output_Images/2.5_epoch1.png" class="result-img" alt="Class-Conditioned Epoch 1">
+          </div>
+          <div>
+            <p class="img-caption">Epoch 5</p>
+            <img src="Part_B_Output_Images/2.5_epoch5.png" class="result-img" alt="Class-Conditioned Epoch 5">
+          </div>
+          <div>
+            <p class="img-caption">Epoch 10</p>
+            <img src="Part_B_Output_Images/2.5_epoch10.png" class="result-img" alt="Class-Conditioned Epoch 10">
+          </div>
+        </div>
+        
+        <p class="img-caption">Final Sample Grid (Epoch 10)</p>
+        <img src="Part_B_Output_Images/2.6.png" class="result-img" alt="Final Class Conditioned Sampling" style="max-width: 400px; margin: 0 auto; display: block;">
+
+        <hr>
+        <h4>Ablation: Removing the LR Scheduler</h4>
+        <div class="info-box">
+          <strong>Compensation Strategy:</strong> To compensate for the loss of the Exponential Learning Rate scheduler, we used a smaller, constant learning rate of <code>1e-3</code> (instead of the initial <code>1e-2</code>). This ensures the model does not diverge or overshoot minima later in training.
+        </div>
+        <p class="img-caption">Training Loss without Scheduler</p>
+        <img src="Part_B_Output_Images/2.6_training_loss.png" class="result-img" alt="Ablation Training Loss" style="max-width: 600px; margin: 0 auto; display: block;">
+      </details>
+
+    </div>
+  </details>
+
+  </div>
+  </details>
+
+  <hr>
+  <p style="text-align:center; color:#999; font-size:0.8rem; margin-top:2rem;">
+    COMS4732W Computer Vision 2 · HW5 · Himanshu Jhawar (hj2713)
+  </p>
+
+</body>
+</html>
