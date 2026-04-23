@@ -11,20 +11,7 @@ import warnings
 from io import StringIO
 import contextlib
 
-CODE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if CODE_DIR not in sys.path:
-    sys.path.insert(0, CODE_DIR)
-
-from constants import (
-    DPT_CACHE_DIRNAME,
-    DPT_MODEL_ID,
-    DRIVE_PROJECT_DIR,
-    LOCAL_MODELS_CACHE_DIR,
-    MASKS_DIR,
-    RAW_IMAGES_DIR,
-    TEST_IMAGE_NAME,
-    TEST_MASK_NAME,
-)
+from constants import DPT_CACHE_DIRNAME, DPT_MODEL_ID, DRIVE_PROJECT_DIR, LOCAL_MODELS_CACHE_DIR
 
 # Suppress all warnings
 warnings.filterwarnings("ignore")
@@ -74,64 +61,11 @@ def _cache_contains_model(model_cache_name):
             return True
     return False
 
-
-def _normalize_angle(angle_degrees):
-    return ((angle_degrees + 180.0) % 360.0) - 180.0
-
-
-def _angle_from_vector(dx, dy):
-    if abs(dx) < 1e-6 and abs(dy) < 1e-6:
-        return None
-    return _normalize_angle(np.degrees(np.arctan2(dy, dx)))
-
-
-def _blend_angles(angle_a, weight_a, angle_b, weight_b):
-    angles = []
-    weights = []
-    if angle_a is not None and weight_a > 0:
-        angles.append(np.radians(angle_a))
-        weights.append(weight_a)
-    if angle_b is not None and weight_b > 0:
-        angles.append(np.radians(angle_b))
-        weights.append(weight_b)
-    if not angles:
-        return 0.0
-
-    x = sum(w * np.cos(a) for a, w in zip(angles, weights))
-    y = sum(w * np.sin(a) for a, w in zip(angles, weights))
-    return _angle_from_vector(x, y) or 0.0
-
-
-def _interior_mask(mask):
-    """Remove object-boundary pixels so the estimator focuses on shading, not silhouette edges."""
-    mask_uint8 = mask.astype(np.uint8)
-    y_indices, x_indices = np.where(mask)
-    if len(y_indices) == 0:
-        return mask
-
-    object_size = max(y_indices.max() - y_indices.min() + 1, x_indices.max() - x_indices.min() + 1)
-    erosion_size = max(3, int(object_size * 0.035))
-    if erosion_size % 2 == 0:
-        erosion_size += 1
-    kernel = np.ones((erosion_size, erosion_size), dtype=np.uint8)
-    eroded = cv2.erode(mask_uint8, kernel, iterations=1).astype(bool)
-
-    # Very thin objects can disappear after erosion; fall back to the original mask.
-    return eroded if eroded.sum() > max(50, mask.sum() * 0.15) else mask
-
 def estimate_light_direction_sobel(image_rgb, mask):
     """
-    Module 2A: Proposed training-free illumination estimator.
-
-    The first implementation used a magnitude-weighted histogram of all Sobel
-    edge orientations. That was too sensitive to product silhouettes and printed
-    texture. This version follows the same training-free spirit but estimates
-    illumination from low-frequency shading:
-
-    1. erode the mask to remove boundary edges,
-    2. blur the grayscale image to suppress texture/albedo detail,
-    3. estimate the dark-to-bright direction inside the product,
-    4. blend that with a weak Sobel gradient cue from the smoothed shading image.
+    Module 2A: The Sobel-Gradient Method (Your original proposal)
+    Calculates the direction of the light source using pure computer vision math.
+    It looks for the sharpest transitions from bright to dark.
     
     Args:
         image_rgb (np.array): Original image.
@@ -139,74 +73,36 @@ def estimate_light_direction_sobel(image_rgb, mask):
     Returns:
         float: Angle of the light source in degrees (-180 to 180).
     """
-    mask = mask.astype(bool)
-    if mask.sum() == 0:
-        return 0.0
+    # 1. Isolate the product using the mask
+    masked = image_rgb.copy()
+    masked[~mask] = 0
+    gray = cv2.cvtColor(masked, cv2.COLOR_RGB2GRAY).astype(float)
 
-    gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY).astype(np.float32)
-    interior = _interior_mask(mask)
+    # 2. Apply Sobel operators (Detects horizontal and vertical brightness changes)
+    sobel_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
+    sobel_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
 
-    product_values = gray[mask]
-    fill_value = float(np.median(product_values)) if len(product_values) else 0.0
-    gray_filled = gray.copy()
-    gray_filled[~mask] = fill_value
-
-    y_indices, x_indices = np.where(mask)
-    object_size = max(y_indices.max() - y_indices.min() + 1, x_indices.max() - x_indices.min() + 1)
-    blur_size = max(7, int(object_size * 0.11))
-    if blur_size % 2 == 0:
-        blur_size += 1
-    shading = cv2.GaussianBlur(gray_filled, (blur_size, blur_size), 0)
-
-    valid_values = shading[interior]
-    if len(valid_values) == 0:
-        return 0.0
-
-    # Centroid cue: illumination direction tends to point from darker product
-    # regions toward brighter product regions after texture is smoothed away.
-    low_threshold = np.percentile(valid_values, 25)
-    high_threshold = np.percentile(valid_values, 75)
-    dark_region = interior & (shading <= low_threshold)
-    bright_region = interior & (shading >= high_threshold)
-
-    centroid_angle = None
-    centroid_confidence = 0.0
-    if dark_region.sum() > 0 and bright_region.sum() > 0:
-        dark_y, dark_x = np.where(dark_region)
-        bright_y, bright_x = np.where(bright_region)
-        dx = float(np.mean(bright_x) - np.mean(dark_x))
-        dy = float(np.mean(bright_y) - np.mean(dark_y))
-        centroid_angle = _angle_from_vector(dx, dy)
-        centroid_confidence = min(1.0, np.hypot(dx, dy) / max(1.0, object_size * 0.25))
-
-    # Sobel cue: use gradients only on the smoothed shading image and only in
-    # the mask interior. This keeps the original Sobel idea but suppresses
-    # boundary and albedo-texture dominance.
-    sobel_x = cv2.Sobel(shading, cv2.CV_32F, 1, 0, ksize=3)
-    sobel_y = cv2.Sobel(shading, cv2.CV_32F, 0, 1, ksize=3)
+    # 3. Calculate the magnitude (strength) and angle of the changes
     magnitude = np.sqrt(sobel_x**2 + sobel_y**2)
-    valid = interior & (magnitude > np.percentile(magnitude[interior], 65))
+    angle = np.arctan2(sobel_y, sobel_x) * 180 / np.pi
 
-    gradient_angle = None
-    gradient_confidence = 0.0
-    if valid.sum() > 0:
-        weights = magnitude[valid]
-        vx = float(np.sum(sobel_x[valid] * weights))
-        vy = float(np.sum(sobel_y[valid] * weights))
-        gradient_angle = _angle_from_vector(vx, vy)
-        resultant = np.hypot(vx, vy)
-        total = float(np.sum(weights * np.sqrt(sobel_x[valid] ** 2 + sobel_y[valid] ** 2))) + 1e-6
-        gradient_confidence = min(1.0, resultant / total)
+    # 4. Filter only the strong edges inside the mask
+    valid = mask & (magnitude > magnitude.mean())
+    angles_valid = angle[valid]
+    weights_valid = magnitude[valid]
 
-    # The centroid cue is more stable on textured products; the gradient cue is
-    # retained as a secondary signal when the smoothed shading has a coherent
-    # direction.
-    return _blend_angles(
-        centroid_angle,
-        max(0.15, centroid_confidence),
-        gradient_angle,
-        0.35 * gradient_confidence,
+    if len(angles_valid) == 0:
+        return 0.0
+
+    # 5. Build a histogram to find the most common light angle
+    hist, bin_edges = np.histogram(
+        angles_valid, bins=36, range=(-180, 180), weights=weights_valid
     )
+
+    dominant_bin = np.argmax(hist)
+    theta_fg = (bin_edges[dominant_bin] + bin_edges[dominant_bin+1]) / 2
+
+    return theta_fg
 
 def estimate_light_direction_dl(image_rgb, mask):
     """
@@ -234,8 +130,8 @@ def estimate_light_direction_dl(image_rgb, mask):
         print(f"  HF_HOME: {os.environ['HF_HOME']}")
         print(f"  HF_HUB_CACHE: {os.environ['HF_HUB_CACHE']}")
 
-        # Suppress model-loader internals that otherwise flood notebook output.
-        with contextlib.redirect_stdout(StringIO()), contextlib.redirect_stderr(StringIO()):
+        # SUPPRESS STDOUT during model loading (JAX/Flax + transformers write directly to STDOUT)
+        with contextlib.redirect_stdout(StringIO()):
             _depth_estimator = pipeline(
                 "depth-estimation",
                 model=DPT_MODEL_ID,
@@ -300,7 +196,7 @@ def benchmark_estimators(image_path, mask_path):
     start_time = time.time()
     angle_sobel = estimate_light_direction_sobel(image_rgb, mask)
     sobel_time = time.time() - start_time
-    print(f"theta_sobel (computed, not hardcoded): {angle_sobel:.1f} degrees")
+    print(f"theta_sobel : {angle_sobel:.1f} degrees")
     print(f"Time taken: {sobel_time:.4f} seconds")
     
     print("-" * 40)
@@ -318,8 +214,8 @@ def benchmark_estimators(image_path, mask_path):
 # Run via: !python core/2_illumination.py
 if __name__ == "__main__":
     import os
-    test_image_path = str(RAW_IMAGES_DIR / TEST_IMAGE_NAME)
-    test_mask_path = str(MASKS_DIR / TEST_MASK_NAME)
+    test_image_path = "data/raw_images/test.jpg"
+    test_mask_path = "data/masks/test_mask.png"
     
     if not os.path.exists(test_image_path) or not os.path.exists(test_mask_path):
         print("ACTION REQUIRED: Make sure you have run '1_segmentation.py' first so that test.jpg and test_mask.png exist!")
