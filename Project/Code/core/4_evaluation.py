@@ -1,0 +1,130 @@
+import numpy as np
+import cv2
+import os
+import sys
+
+CODE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if CODE_DIR not in sys.path:
+    sys.path.insert(0, CODE_DIR)
+
+from constants import (
+    MASKS_DIR,
+    OUTPUTS_DIR,
+    RAW_IMAGES_DIR,
+    TEST_GENERATED_NAME,
+    TEST_IMAGE_NAME,
+    TEST_MASK_NAME,
+)
+
+def compute_sdcs(composite_rgb, product_mask, theta_fg_deg):
+    """
+    Module 4: Shadow Direction Consistency Score (SDCS)
+    This is your novel metric for the final report. It evaluates how physically 
+    realistic the generated shadow is by comparing its angle to the estimated light source.
+    
+    Args:
+        composite_rgb (np.array): The final composited image.
+        product_mask (np.array): Boolean array where True represents the product.
+        theta_fg_deg (float): The angle of the light hitting the product (from Module 2).
+        
+    Returns:
+        float: Score from -1.0 (completely wrong) to 1.0 (perfect).
+               Returns None if no dark shadow is detected in the image.
+    """
+    if theta_fg_deg is None:
+        return None
+
+    # Convert image to grayscale to easily find dark shadow pixels
+    gray = cv2.cvtColor(composite_rgb, cv2.COLOR_RGB2GRAY)
+
+    # Step 1: Find the geometric center and "base" of the product.
+    # Shadows usually cast from the base of an object resting on a surface.
+    y_indices, x_indices = np.where(product_mask)
+    if len(y_indices) == 0:
+        return None
+        
+    obj_bottom = y_indices.max()
+    obj_cx = np.mean(x_indices)
+    
+    # We only want to look for shadows in the bottom 15% of the object and below it
+    search_top = int(obj_bottom * 0.85)
+
+    # Step 2: Look at the background pixels (where mask is False) in the lower region
+    bg_region = gray[search_top:, :]
+    mask_region = ~product_mask[search_top:, :]
+    
+    # Only consider pixels that are actually part of the background
+    valid_bg_pixels = bg_region[mask_region]
+    if len(valid_bg_pixels) == 0:
+        return None
+        
+    # Find the darkest 20% of pixels in this area. We assume these are the cast shadow.
+    threshold = np.percentile(valid_bg_pixels, 20)
+    shadow_pixels = (bg_region < threshold) & mask_region
+
+    # If there are barely any dark pixels, Stable diffusion probably generated a flat, shadowless background
+    if shadow_pixels.sum() < 20:
+        return None  
+
+    # Step 3: Find the center of mass of the shadow
+    shadow_y_coords, shadow_x_coords = np.where(shadow_pixels)
+    shadow_cy = np.mean(shadow_y_coords) + search_top
+    shadow_cx = np.mean(shadow_x_coords)
+
+    # Step 4: Calculate the direction from the product's base to the shadow
+    dx = shadow_cx - obj_cx
+    dy = shadow_cy - obj_bottom
+    theta_shadow_deg = np.degrees(np.arctan2(dy, dx))
+
+    # Step 5: Calculate SDCS
+    # The shadow should point in the EXACT OPPOSITE direction of the light.
+    # If light is at 0 degrees (right), shadow should be at 180 degrees (left).
+    theta_fg_rad = np.radians(theta_fg_deg)
+    theta_shadow_rad = np.radians(theta_shadow_deg)
+    
+    # Math: Cosine of the difference between actual shadow and expected shadow
+    # Cosine(0 difference) = 1.0. Cosine(180 difference) = -1.0.
+    expected_shadow_rad = theta_fg_rad + np.pi
+    sdcs = np.cos(theta_shadow_rad - expected_shadow_rad)
+
+    return float(sdcs)
+
+# --- TEST BLOCK FOR COLAB ---
+# Run via: !python core/4_evaluation.py
+if __name__ == "__main__":
+    import importlib.util
+    test_output_path = str(OUTPUTS_DIR / TEST_GENERATED_NAME)
+    test_mask_path = str(MASKS_DIR / TEST_MASK_NAME)
+    test_image_path = str(RAW_IMAGES_DIR / TEST_IMAGE_NAME)
+    
+    if not os.path.exists(test_output_path) or not os.path.exists(test_mask_path) or not os.path.exists(test_image_path):
+        print("ACTION REQUIRED: Make sure you have run '1_segmentation.py' and '3_generation.py' first!")
+    else:
+        # Load the generated image and mask
+        composite_rgb = cv2.cvtColor(cv2.imread(test_output_path), cv2.COLOR_BGR2RGB)
+        image_rgb = cv2.cvtColor(cv2.imread(test_image_path), cv2.COLOR_BGR2RGB)
+        mask_img = cv2.imread(test_mask_path, cv2.IMREAD_GRAYSCALE)
+        mask = mask_img > 127
+
+        illumination_path = os.path.join(os.path.dirname(__file__), "2_illumination.py")
+        spec = importlib.util.spec_from_file_location("illumination", illumination_path)
+        illumination = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(illumination)
+        test_angle = illumination.estimate_light_direction_sobel(image_rgb, mask)
+        
+        print("-" * 40)
+        print("Running SDCS Evaluation Metric...")
+        print(f"theta_sobel used for SDCS (computed, not hardcoded): {test_angle:.1f} degrees")
+        score = compute_sdcs(composite_rgb, mask, test_angle)
+        
+        if score is None:
+            print("Result: No clear shadow was detected in the generated image.")
+        else:
+            print(f"Result: SDCS Score = {score:.3f}")
+            if score > 0.8:
+                print("EXCELLENT: The shadow direction perfectly matches the light source.")
+            elif score > 0.0:
+                print("GOOD: The shadow is generally in the correct direction.")
+            else:
+                print("POOR: The shadow is pointing in the wrong direction.")
+        print("-" * 40)

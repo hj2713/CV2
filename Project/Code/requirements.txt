@@ -1,0 +1,14 @@
+torch
+torchvision
+segment-anything
+opencv-python-headless
+Pillow
+numpy
+transformers
+diffusers
+accelerate
+gradio
+lpips
+tqdm
+pandas
+matplotlib

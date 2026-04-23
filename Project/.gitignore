@@ -1,0 +1,25 @@
+# Python/runtime noise
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.DS_Store
+
+# Large model weights and HuggingFace caches belong in Google Drive, not GitHub.
+*.pth
+*.ckpt
+*.safetensors
+Code/data/models_cache/
+Code/data/**/models_cache/
+Code/data/**/.cache/
+Code/.cache/
+Code/hf_cache/
+Code/**/hf_cache/
+
+# Temporary UI/test files
+Code/data/outputs/_tmp_input.jpg
+Code/data/raw_images/test.jpg
+
+# Keep generated experiment artifacts trackable:
+#   Code/data/masks/
+#   Code/data/outputs/results_*.csv
+#   Code/data/outputs/run_*/
