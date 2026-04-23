@@ -36,7 +36,9 @@ BACKGROUND_STYLE_OPTIONS = (
     "outdoor grass",
 )
 GENERATED_VARIANTS = ("naive", "sobel", "dl")
-MAX_VISUALIZATION_IMAGES = 6
+# Set to None to display every product in the qualitative diagnostics cell.
+# Use an integer only when debugging a small subset of a large run.
+MAX_VISUALIZATION_IMAGES = None
 OUTPUTS_PER_IMAGE = 3
 
 
