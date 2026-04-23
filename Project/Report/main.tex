@@ -30,7 +30,7 @@ Columbia University\\
 \maketitle
 
 \begin{abstract}
-Casual product photographs often contain useful foreground detail but poor backgrounds and physically inconsistent shadows. This project studies a controlled product-compositing pipeline that preserves the original product pixels, estimates foreground illumination, and synthesizes a studio-style background with an explicit cast shadow. The system uses Segment Anything (SAM) for product segmentation, a proposed training-free Sobel-shading method for foreground light-direction estimation, and a DPT-Large monocular-depth baseline for comparison. Instead of relying on text-conditioned diffusion, the final compositor procedurally generates a clean background and synthesizes a mask-derived shadow opposite the estimated light direction. The evaluation is organized around a 30-image product result set and compares naive ambient-shadow compositing, Sobel-conditioned compositing, and DPT-conditioned compositing using Shadow Direction Consistency Score (SDCS), LPIPS, and light-estimation runtime. Results show that DPT is more reliable overall, while Sobel-shading remains an interpretable, training-free method that can produce qualitatively similar outputs when the estimated direction agrees with the learned baseline. The study is framed as a focused course-project evaluation rather than a claim of large-scale superiority.
+Casual product photographs often contain useful foreground detail but poor backgrounds and physically inconsistent shadows. This project studies a controlled product-compositing pipeline that preserves the original product pixels, estimates foreground illumination, and synthesizes a studio-style background with an explicit cast shadow. The system uses Segment Anything (SAM) for product segmentation, a proposed training-free Sobel-shading method for foreground light-direction estimation, and a DPT-Large monocular-depth baseline for comparison. Instead of relying on text-conditioned diffusion, the final compositor procedurally generates a clean background and synthesizes a mask-derived shadow opposite the estimated light direction. The evaluation is organized around a 30-image product result set and compares naive ambient-shadow compositing, Sobel-conditioned compositing, and DPT-conditioned compositing using Shadow Direction Consistency Score (SDCS), LPIPS, and light-estimation runtime. Results show that the Sobel-conditioned branch outperforms the DPT-conditioned branch on mean SDCS, mean LPIPS, and conditioned pairwise wins, while the naive baseline exposes an important SDCS limitation by scoring highly despite not using estimated illumination. The study is framed as a focused course-project evaluation rather than a claim of large-scale superiority.
 \end{abstract}
 
 \section{Introduction}
@@ -227,24 +227,47 @@ Higher is better, with $+1$ indicating aligned shadow direction and $-1$ indicat
 \section{Results}
 
 \subsection{Aggregate Metrics}
-Table~\ref{tab:aggregate} summarizes the product-result evaluation. DPT-conditioned outputs have higher average SDCS than Sobel-conditioned outputs, although both remain affected by the limitations of the shadow detector. LPIPS is similar across variants because the original product pixels are pasted back exactly; differences mostly come from the generated background and shadow.
+Table~\ref{tab:aggregate} summarizes the 30-image product-result evaluation. Among the two illumination-conditioned variants, Sobel-conditioned compositing has the stronger mean SDCS, median SDCS, mean LPIPS, and mean light-estimation time. However, the naive baseline has the highest mean SDCS, which is not evidence that ignoring illumination is best; it reveals that the current SDCS detector can over-reward compact ambient contact shadows even when no estimated light direction is used.
 
 \begin{table}[H]
 \centering
-\caption{Aggregate product-result metrics. Higher SDCS is better; lower LPIPS and runtime are better. Runtime is angle-estimation time only.}
+\caption{Aggregate 30-image product-result metrics. Higher SDCS is better; lower LPIPS and runtime are better. Runtime is angle-estimation time only.}
 \label{tab:aggregate}
-\begin{tabular}{lccc}
+\begin{tabular}{lrrrr}
 \toprule
-Variant & Mean SDCS $\uparrow$ & Mean LPIPS $\downarrow$ & Mean angle time (s) $\downarrow$ \\
+Variant & Mean SDCS $\uparrow$ & Median SDCS $\uparrow$ & Mean LPIPS $\downarrow$ & Mean angle time (s) $\downarrow$ \\
 \midrule
-Naive & 0.3794 & 0.3790 & -- \\
-Sobel-conditioned & -0.0734 & 0.3803 & 1.0019 \\
-DPT-conditioned & 0.0702 & 0.3919 & 1.8236 \\
+Naive & 0.2061 & 0.3728 & 0.4472 & -- \\
+Sobel-conditioned & -0.0852 & -0.1077 & 0.4612 & 0.3093 \\
+DPT-conditioned & -0.2916 & -0.4418 & 0.4652 & 0.3891 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The DPT runtime includes the first-image model initialization cost. After the model is loaded, DPT inference is substantially faster than the cold-start number suggests. Sobel-shading is training-free but was applied at full image resolution; on large stress images it can become slower than expected. This suggests a practical optimization: downsample the product crop before Sobel-shading estimation.
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/results_summary_30_images.png}
+\caption{Visual summary of the 30-image aggregate results. The naive SDCS result should be interpreted cautiously because it reflects a metric artifact, not true light-conditioned shadow control.}
+\label{fig:summary}
+\end{figure}
+
+The DPT runtime includes the first-image model initialization cost. After the model is loaded, DPT inference is substantially faster than the cold-start number suggests. Sobel-shading remains faster on average in this run and has a lower median runtime (0.0537 seconds/image versus 0.0876 seconds/image for DPT). The current Sobel implementation still processes full-resolution images, so resizing the product crop before estimation is a straightforward future optimization.
+
+\begin{table}[H]
+\centering
+\caption{Pairwise conditioned comparison over the 30-image result set.}
+\label{tab:wins}
+\begin{tabular}{lrr}
+\toprule
+Criterion & Sobel-conditioned & DPT-conditioned \\
+\midrule
+Higher SDCS & 18 / 30 & 12 / 30 \\
+Lower LPIPS & 18 / 30 & 12 / 30 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Sobel and DPT agree within $30^\circ$ on 11 of 30 images and within $45^\circ$ on 13 of 30 images. This partial agreement explains why some visual rows look similar even when the two methods are conceptually different. The disagreement cases are also useful: they reveal where depth-weighted brightness and low-frequency shading rely on different image evidence.
 
 \subsection{Per-Image Metrics}
 \begin{table}[H]
@@ -256,57 +279,73 @@ The DPT runtime includes the first-image model initialization cost. After the mo
 \toprule
 Image & $\theta_S$ & $\theta_D$ & SDCS naive & SDCS Sobel & SDCS DPT & LPIPS naive & LPIPS Sobel & LPIPS DPT \\
 \midrule
-Me & -119.59 & -12.89 & 0.8770 & 0.2581 & -0.8111 & 0.4627 & 0.4685 & 0.4765 \\
-heels & 143.08 & -14.41 & -0.9897 & -0.8570 & 0.9258 & 0.1698 & 0.1728 & 0.2128 \\
-juice & -99.07 & 95.59 & 0.3480 & 0.2486 & -0.1426 & 0.4969 & 0.4855 & 0.5010 \\
-glass perfume & -58.31 & -66.95 & 0.8039 & -0.1528 & 0.0942 & 0.1804 & 0.2030 & 0.1963 \\
-open soda can & -62.57 & -58.30 & 0.8579 & 0.1359 & 0.2849 & 0.5850 & 0.5717 & 0.5728 \\
+1 & -60.17 & 83.20 & 0.7753 & 0.6070 & -0.9791 & 0.1945 & 0.2291 & 0.2972 \\
+10 & 143.08 & -14.41 & -0.9897 & -0.8570 & 0.9258 & 0.1698 & 0.1728 & 0.2128 \\
+12 & -165.03 & -171.43 & 0.9999 & 0.6194 & 0.6827 & 0.3844 & 0.3691 & 0.3680 \\
+15 & -104.85 & 14.99 & 0.9975 & 0.9886 & -0.9955 & 0.7155 & 0.7001 & 0.7015 \\
+18 & -14.07 & -44.92 & -0.9954 & 0.8897 & 0.3482 & 0.5719 & 0.5692 & 0.5584 \\
+26 & 35.02 & -174.77 & -0.9303 & -0.8691 & 0.9820 & 0.4498 & 0.5305 & 0.5265 \\
 \bottomrule
 \end{tabular}}
 \end{table}
 
 \begin{table}[H]
 \centering
-\caption{Light-estimation runtime in seconds per image.}
+\caption{Light-estimation runtime summary in seconds/image over the 30-image result set.}
 \label{tab:runtime}
-\begin{tabular}{lrr}
+\begin{tabular}{lrrrr}
 \toprule
-Image & Sobel-shading & DPT-Large \\
+Method & Mean & Median & Minimum & Maximum \\
 \midrule
-Me & 0.0174 & 7.3183 \\
-heels & 0.0591 & 0.0894 \\
-juice & 0.0250 & 0.0718 \\
-glass perfume & 2.7400 & 0.8876 \\
-open soda can & 2.1678 & 0.7507 \\
-\midrule
-Mean & 1.0019 & 1.8236 \\
-Median & 0.0591 & 0.7507 \\
+Sobel-shading & 0.3093 & 0.0537 & 0.0036 & 2.7021 \\
+DPT-Large & 0.3891 & 0.0876 & 0.0663 & 6.4043 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \subsection{Qualitative Results}
-Figure~\ref{fig:juice} and Figure~\ref{fig:stress} show representative output rows. The columns are original image, SAM product, naive composite, Sobel-conditioned composite, and DPT-conditioned composite.
+Figures~\ref{fig:result1}--\ref{fig:result26} show representative output rows from the final 30-image evaluation. The columns are original image, SAM product, naive composite, Sobel-conditioned composite, and DPT-conditioned composite. These examples were selected to show both agreement and disagreement cases rather than only the best outputs.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=\textwidth]{figures/comparison_juice.png}
-\caption{Qualitative row for the juice image. Sobel and DPT predict very different light directions, leading to different shadow placement. The product pixels remain preserved across all composites.}
-\label{fig:juice}
+\includegraphics[width=\textwidth]{figures/comparison_result_1.png}
+\caption{Representative result 1. Sobel produces a plausible shadow direction, while DPT predicts a substantially different light angle.}
+\label{fig:result1}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=\textwidth]{figures/comparison_open_soda_can.png}
-\caption{Qualitative row for the open soda can stress case. Sobel and DPT estimate similar directions, and the resulting shadows are qualitatively similar.}
-\label{fig:stress}
+\includegraphics[width=\textwidth]{figures/comparison_result_10.png}
+\caption{Representative result 10. This is a DPT-favorable case: DPT-conditioned SDCS is high, while the Sobel estimate sends the shadow in a less consistent direction.}
+\label{fig:result10}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=\textwidth]{figures/comparison_heels.png}
-\caption{Qualitative row for the heels image. DPT achieves the strongest SDCS on this example, while the Sobel estimate points the shadow in a less consistent direction.}
-\label{fig:heels}
+\includegraphics[width=\textwidth]{figures/comparison_result_12.png}
+\caption{Representative result 12. Sobel and DPT estimate similar directions, producing visually similar conditioned composites.}
+\label{fig:result12}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/comparison_result_15.png}
+\caption{Representative result 15. This is a Sobel-favorable case where the training-free estimator gives a much stronger SDCS than the DPT-derived proxy.}
+\label{fig:result15}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/comparison_result_18.png}
+\caption{Representative result 18. Both conditioned variants improve over the naive SDCS, with Sobel giving the stronger directional consistency score.}
+\label{fig:result18}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/comparison_result_26.png}
+\caption{Representative result 26. This is a DPT-favorable case and illustrates that Sobel-shading can fail when low-frequency intensity cues do not correspond to the true visible lighting direction.}
+\label{fig:result26}
 \end{figure}
 
 \section{Discussion}
@@ -319,12 +358,12 @@ The teaching-assistant feedback suggested IC-Light, which is directly relevant b
 IC-Light is therefore a strong candidate for a future version of this project, especially if the objective becomes \emph{relight the product to match a selected background}. The current project makes a different design decision: it treats the original product lighting as evidence and generates a background/shadow that agrees with it. This is useful for product photography where preserving the exact product appearance is important. In contrast, IC-Light would be preferable when the user already has a target background or wants to intentionally change the product illumination itself. A natural extension would combine both approaches: use IC-Light to relight the foreground gently, then use the explicit shadow compositor to keep the final cast shadow controllable and measurable.
 
 \subsection{Is Sobel-Shading Better?}
-On the current results, no. DPT-conditioned outputs are stronger by average SDCS, especially on the heels example. Sobel-shading is valuable because it is interpretable, training-free, and does not require downloading a learned model. It performs qualitatively well when product shading is smooth and when its angle agrees with DPT, as in the soda can stress case. It performs poorly when shading cues are ambiguous, when material is reflective/transparent, or when product texture dominates the smoothed signal.
+On the final 30-image result set, Sobel-shading is better than the DPT-derived proxy on the reported conditioned metrics: it has higher mean SDCS, lower mean LPIPS, faster average angle estimation, and wins 18 of 30 pairwise SDCS comparisons. This does not mean the Sobel method is universally better than learned illumination reasoning. It means that, under this deterministic compositor and this 30-image product set, the proposed low-frequency shading cue is often more aligned with the synthetic shadow geometry than the depth-weighted DPT proxy. Sobel-shading performs well when product shading is smooth and material texture does not dominate the interior signal. It performs poorly when shading cues are ambiguous, when material is reflective/transparent, or when the visible intensity pattern is caused by texture rather than lighting.
 
 The timing results are also nuanced. Sobel is extremely fast on small/medium images, but the current implementation processes full-resolution product images and therefore slows down on high-resolution stress cases. DPT internally resizes images for the model, so after the first-image loading cost it can be faster than full-resolution Sobel on very large images. A fair engineering improvement would estimate Sobel-shading on a resized crop.
 
 \subsection{Why Not Replace DPT with Sobel?}
-This report should not be read as evidence that Sobel-shading replaces learned models. The evaluation uses 30 images, not thousands of images across controlled material, geometry, and lighting categories. The proposed method is a lightweight, explainable baseline. It is useful for demonstrating the computer-vision idea and for cases where a model download is undesirable, but DPT remains more robust in the reported results.
+This report should not be read as evidence that Sobel-shading replaces learned models. The evaluation uses 30 images, not thousands of images across controlled material, geometry, and lighting categories. Also, DPT-Large was not trained for illumination estimation; it is a depth model used here as a deep-learning baseline because geometry and brightness are useful proxies. A dedicated learned illumination estimator or an IC-Light-style relighting model could behave differently. The proposed method is best interpreted as a lightweight, explainable, CPU-friendly estimator that is competitive in this controlled setup, not as a general replacement for learned relighting systems.
 
 \subsection{Metric Limitations}
 The naive baseline has the highest average SDCS in Table~\ref{tab:aggregate}, which reveals a limitation of SDCS. The naive method uses an ambient contact shadow, and the shadow detector can interpret this dark region as directionally consistent even though the image was not actually conditioned on foreground lighting. For this reason, SDCS should be interpreted alongside qualitative figures and shadow-vector diagnostics, not as a sole measure of realism.
@@ -344,7 +383,7 @@ The naive baseline has the highest average SDCS in Table~\ref{tab:aggregate}, wh
 Future work should evaluate on a larger benchmark, resize/crop before Sobel estimation for fair timing, add confidence estimates for Sobel angles, test a dedicated illumination-estimation model, improve transparent-object matting, and replace the 2D mask translation shadow with a perspective-aware ground-plane transform. IC-Light integration is also a strong future direction: the foreground could be relit to match a user-selected background, while the current shadow compositor could provide explicit and measurable cast-shadow control. A human preference study would also help separate metric artifacts from perceived realism.
 
 \section{Conclusion}
-This project presents an illumination-aware product compositing pipeline that estimates foreground lighting and uses it to control synthetic shadow direction. The final system is deliberately deterministic: SAM segments the product, the original product pixels are preserved, and the background/shadow are generated through explicit image-processing operations. On the reported product-result evaluation, DPT-Large provides the stronger learned baseline, while Sobel-shading is an interpretable training-free method that can produce plausible results when shading cues are reliable. The most important project outcome is not that Sobel replaces DPT, but that foreground illumination can be exposed as an explicit variable in product-background compositing and evaluated with reproducible outputs.
+This project presents an illumination-aware product compositing pipeline that estimates foreground lighting and uses it to control synthetic shadow direction. The final system is deliberately deterministic: SAM segments the product, the original product pixels are preserved, and the background/shadow are generated through explicit image-processing operations. On the 30-image product-result evaluation, Sobel-shading outperforms the DPT-derived proxy among conditioned variants on mean SDCS, mean LPIPS, and pairwise wins, while also being faster on average. The result supports the value of a simple, explainable foreground-shading estimator for controlled product compositing. The most important project outcome is still broader than one metric: foreground illumination can be exposed as an explicit variable in product-background compositing, controlled through mask-based shadow geometry, and evaluated with reproducible outputs.
 
 \section*{Acknowledgements}
 This project was developed for COMS 4732 Computer Vision II. The implementation uses open-source models and tools including Segment Anything, Hugging Face Transformers, DPT-Large, OpenCV, PyTorch, Gradio, and LPIPS.

@@ -8,11 +8,11 @@ Main file:
 Report/main.tex
 ```
 
-The report uses the latest exported results and comparison panels:
+The report uses the final 30-image exported results and comparison panels:
 
 ```text
-Code/data/outputs/results_*.csv
-Code/data/outputs/run_*/
+Code/data/outputs/results_003.csv
+Code/data/outputs/run_003/
 ```
 
 To compile on a machine with LaTeX installed:
