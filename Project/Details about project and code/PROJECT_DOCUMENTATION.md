@@ -43,12 +43,12 @@ This is a well-scoped project, though I do want to note there are many methods w
 
 How the implementation addresses this:
 
-| TA point                                            | Current response                                                                                                                                                                          |
-| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Compare Sobel to deep-learning illumination methods | Added DPT-Large depth-based DL baseline. It estimates depth, then derives an angle from depth-weighted brightness.                                                                        |
-| Mention IC-Light                                    | Discuss IC-Light as related work. IC-Light relights foreground to match a target background. This project does the reverse: preserve foreground lighting and adapt the background/shadow. |
-| Clarify table numbers                               | Final report must clearly state that proposal numbers were expected values, while final tables are measured experimental results.                                                         |
-| Avoid double-dipping confusion                      | State that the implementation and results were produced for this CV2 project.                                                                                                             |
+| TA point | Current response |
+| --- | --- |
+| Compare Sobel to deep-learning illumination methods | Added DPT-Large depth-based DL baseline. It estimates depth, then derives an angle from depth-weighted brightness. |
+| Mention IC-Light | Discuss IC-Light as related work. IC-Light relights foreground to match a target background. This project does the reverse: preserve foreground lighting and adapt the background/shadow. |
+| Clarify table numbers | Final report must clearly state that proposal numbers were expected values, while final tables are measured experimental results. |
+| Avoid double-dipping confusion | State that the implementation and results were produced for this CV2 project. |
 
 ## Current Architecture
 
@@ -144,7 +144,7 @@ https://openaccess.thecvf.com/content/ICCV2021/html/Ranftl_Vision_Transformers_f
 File:
 
 ```text
-Code/core/3_compositing.py
+Code/core/3_generation.py
 ```
 
 Main function:
@@ -165,11 +165,11 @@ Current process:
 
 Variants:
 
-| Variant | Input angle   | Behavior                                         |
-| ------- | ------------- | ------------------------------------------------ |
-| Naive   | `None`        | Ambient contact shadow only.                     |
-| Sobel   | `theta_sobel` | Cast shadow conditioned on proposed Sobel angle. |
-| DPT     | `theta_dl`    | Cast shadow conditioned on DPT-derived angle.    |
+| Variant | Input angle | Behavior |
+| --- | --- | --- |
+| Naive | `None` | Ambient contact shadow only. |
+| Sobel | `theta_sobel` | Cast shadow conditioned on proposed Sobel angle. |
+| DPT | `theta_dl` | Cast shadow conditioned on DPT-derived angle. |
 
 Why this pivot was made:
 
@@ -358,11 +358,11 @@ Segmentation -> Illumination Estimation -> Shadow Synthesis -> Compositing -> Ev
 
 Recommended comparison table:
 
-| Method | Description                                          |
-| ------ | ---------------------------------------------------- |
-| Naive  | Clean background with ambient contact shadow only.   |
-| Sobel  | Proposed Sobel angle controls cast-shadow direction. |
-| DPT    | DPT-derived angle controls cast-shadow direction.    |
+| Method | Description |
+| --- | --- |
+| Naive | Clean background with ambient contact shadow only. |
+| Sobel | Proposed Sobel angle controls cast-shadow direction. |
+| DPT | DPT-derived angle controls cast-shadow direction. |
 
 Recommended metrics:
 

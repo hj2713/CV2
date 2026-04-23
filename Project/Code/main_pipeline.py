@@ -60,7 +60,7 @@ def _load_module(filename, module_name):
 print("Loading pipeline modules.")
 seg_mod  = _load_module("1_segmentation.py", "segmentation")
 illu_mod = _load_module("2_illumination.py", "illumination")
-gen_mod  = _load_module("3_compositing.py",   "generation")
+gen_mod  = _load_module("3_generation.py",   "generation")
 eval_mod = _load_module("4_evaluation.py",   "evaluation")
 
 segment_product                = seg_mod.segment_product
@@ -68,6 +68,7 @@ estimate_light_direction_sobel = illu_mod.estimate_light_direction_sobel
 estimate_light_direction_dl    = illu_mod.estimate_light_direction_dl
 generate_background            = gen_mod.generate_background
 build_generation_prompt        = gen_mod.build_generation_prompt
+shadow_vector_from_light_angle = gen_mod.shadow_vector_from_light_angle
 compute_sdcs                   = eval_mod.compute_sdcs
 
 
@@ -244,14 +245,21 @@ def process_single_image(image_path, run_output_dir, index, total):
             result[f"prompt_{key}"] = None
             result[f"light_direction_{key}"] = None
             result[f"shadow_direction_{key}"] = None
+            result[f"shadow_angle_{key}"] = None
+            result[f"shadow_dx_{key}"] = None
+            result[f"shadow_dy_{key}"] = None
             continue
 
         out_path = os.path.join(run_output_dir, f"{stem}_{key}.png")
         prompt, negative_prompt, light_direction, shadow_direction = build_generation_prompt(theta=theta, bg_style=BG_STYLE)
+        shadow_dx, shadow_dy, shadow_angle = shadow_vector_from_light_angle(theta, image_rgb.shape)
         result["negative_prompt"] = negative_prompt
         result[f"prompt_{key}"] = prompt
         result[f"light_direction_{key}"] = light_direction
         result[f"shadow_direction_{key}"] = shadow_direction
+        result[f"shadow_angle_{key}"] = round(shadow_angle, 2) if shadow_angle is not None else None
+        result[f"shadow_dx_{key}"] = shadow_dx
+        result[f"shadow_dy_{key}"] = shadow_dy
         try:
             composite_pil = _quiet_call(
                 generate_background,
@@ -271,13 +279,21 @@ def process_single_image(image_path, run_output_dir, index, total):
 
     # -- Step 4: SDCS evaluation -----------------------------------------------
     print("  4. Evaluating SDCS and LPIPS.")
+    # SDCS is an evaluation reference, not the generation-conditioning input.
+    # The naive image is unconditioned, but we still score whether its shadow
+    # agrees with the product's estimated foreground lighting.
+    theta_by_variant = {
+        "naive": theta_sobel,
+        "sobel": theta_sobel,
+        "dl": theta_dl,
+    }
     for key in GENERATED_VARIANTS:
         arr = composites.get(key)
         if arr is None:
             result[f"sdcs_{key}"] = None
             result[f"lpips_{key}"] = None
             continue
-        score = compute_sdcs(arr, mask, theta_sobel)
+        score = compute_sdcs(arr, mask, theta_by_variant[key])
         result[f"sdcs_{key}"] = round(score, 4) if score is not None else None
         lpips_score = compute_lpips_score(image_rgb, arr)
         result[f"lpips_{key}"] = round(lpips_score, 4) if lpips_score is not None else None
@@ -353,6 +369,9 @@ def _save_csv(results, path):
         "lpips_naive", "lpips_sobel", "lpips_dl",
         "light_direction_naive", "light_direction_sobel", "light_direction_dl",
         "shadow_direction_naive", "shadow_direction_sobel", "shadow_direction_dl",
+        "shadow_angle_naive", "shadow_angle_sobel", "shadow_angle_dl",
+        "shadow_dx_naive", "shadow_dx_sobel", "shadow_dx_dl",
+        "shadow_dy_naive", "shadow_dy_sobel", "shadow_dy_dl",
         "negative_prompt",
         "prompt_naive", "prompt_sobel", "prompt_dl",
         "output_naive", "output_sobel", "output_dl",

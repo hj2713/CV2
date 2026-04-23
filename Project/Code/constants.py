@@ -21,10 +21,10 @@ LOCAL_MODELS_CACHE_DIR = DATA_DIR / "models_cache"
 
 # Image and run configuration.
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp")
-TEST_IMAGE_NAME = "juice.jpg"
-TEST_MASK_NAME = "juice_mask.png"
-TEST_PRODUCT_NAME = "juice_product.png"
-TEST_GENERATED_NAME = "juice_generated.png"
+TEST_IMAGE_NAME = "test.jpg"
+TEST_MASK_NAME = "test_mask.png"
+TEST_PRODUCT_NAME = "test_product.png"
+TEST_GENERATED_NAME = "test_generated.png"
 GRADIO_TEMP_INPUT_NAME = "_tmp_input.jpg"
 DEFAULT_BACKGROUND_STYLE = "marble surface table"
 BACKGROUND_STYLE_OPTIONS = (
@@ -53,11 +53,9 @@ SAM_WEIGHTS_FILENAME = "sam_vit_h_4b8939.pth"
 SAM_WEIGHTS_URL = "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth"
 DPT_MODEL_ID = "Intel/dpt-large"
 DPT_CACHE_DIRNAME = "models--Intel--dpt-large"
-STABLE_DIFFUSION_MODEL_ID = "sd2-community/stable-diffusion-2-inpainting"
-STABLE_DIFFUSION_CACHE_DIRNAME = "models--sd2-community--stable-diffusion-2-inpainting"
 
 
-# Deterministic compositing and evaluation settings.
+# Compositing and evaluation settings.
 SHADOW_OFFSET_FRACTION = 0.08
 SHADOW_BLUR_FRACTION = 0.045
 SHADOW_OPACITY = 0.48
@@ -67,12 +65,6 @@ LPIPS_IMAGE_SIZE = 256
 LPIPS_BACKBONE = "alex"
 LPIPS_NORMALIZATION_SCALE = 127.5
 LPIPS_NORMALIZATION_OFFSET = 1.0
-
-
-# Legacy diffusion settings kept only for reference with older experiments.
-GENERATION_IMAGE_SIZE = 512
-GENERATION_STEPS = 30
-GENERATION_GUIDANCE_SCALE = 7.5
 
 
 # GitHub push safety.

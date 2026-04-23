@@ -75,11 +75,11 @@ theta_expected_shadow = theta_fg + pi
 
 The project compares three compositing variants:
 
-| Variant | Angle used    | Description                                             |
-| ------- | ------------- | ------------------------------------------------------- |
-| Naive   | None          | Clean background with ambient contact shadow only.      |
-| Sobel   | `theta_sobel` | Proposed Sobel estimate controls cast-shadow direction. |
-| DPT     | `theta_dl`    | DPT-derived estimate controls cast-shadow direction.    |
+| Variant | Angle used | Description |
+| --- | --- | --- |
+| Naive | None | Clean background with ambient contact shadow only. |
+| Sobel | `theta_sobel` | Proposed Sobel estimate controls cast-shadow direction. |
+| DPT | `theta_dl` | DPT-derived estimate controls cast-shadow direction. |
 
 ## 4. Method
 
@@ -249,11 +249,11 @@ SDCS = cos(theta_shadow - theta_expected)
 
 Interpretation:
 
-| SDCS | Meaning                                             |
-| ---- | --------------------------------------------------- |
-| `+1` | Shadow direction perfectly matches expectation.     |
-| `0`  | Shadow direction is orthogonal / weakly consistent. |
-| `-1` | Shadow direction is physically inverted.            |
+| SDCS | Meaning |
+| --- | --- |
+| `+1` | Shadow direction perfectly matches expectation. |
+| `0` | Shadow direction is orthogonal / weakly consistent. |
+| `-1` | Shadow direction is physically inverted. |
 
 SDCS is a heuristic and should be interpreted alongside qualitative examples.
 
@@ -299,11 +299,11 @@ Transparent and reflective objects should be discussed as stress tests because t
 
 ### Compared Methods
 
-| Method | Description                                                    |
-| ------ | -------------------------------------------------------------- |
-| Naive  | Procedural studio background plus ambient contact shadow only. |
-| Sobel  | Proposed Sobel angle controls synthetic cast-shadow direction. |
-| DPT    | DPT-derived angle controls synthetic cast-shadow direction.    |
+| Method | Description |
+| --- | --- |
+| Naive | Procedural studio background plus ambient contact shadow only. |
+| Sobel | Proposed Sobel angle controls synthetic cast-shadow direction. |
+| DPT | DPT-derived angle controls synthetic cast-shadow direction. |
 
 ### Implementation
 
@@ -321,14 +321,14 @@ Code/notebook_helpers/
 
 Core modules:
 
-| Module                 | File                          | Role                                             |
-| ---------------------- | ----------------------------- | ------------------------------------------------ |
-| Notebook orchestration | `Code/notebook_helpers/`      | Colab helper package used by the notebook cells. |
-| Segmentation           | `Code/core/1_segmentation.py` | SAM product mask.                                |
-| Illumination           | `Code/core/2_illumination.py` | Sobel and DPT light estimation.                  |
-| Compositing            | `Code/core/3_compositing.py`  | Background and synthetic shadow creation.        |
-| Evaluation             | `Code/core/4_evaluation.py`   | SDCS metric.                                     |
-| Batch run              | `Code/main_pipeline.py`       | Runs all images and writes CSV/results.          |
+| Module | File | Role |
+| --- | --- | --- |
+| Notebook orchestration | `Code/notebook_helpers/` | Colab helper package used by the notebook cells. |
+| Segmentation | `Code/core/1_segmentation.py` | SAM product mask. |
+| Illumination | `Code/core/2_illumination.py` | Sobel and DPT light estimation. |
+| Compositing | `Code/core/3_generation.py` | Background and synthetic shadow creation. |
+| Evaluation | `Code/core/4_evaluation.py` | SDCS metric. |
+| Batch run | `Code/main_pipeline.py` | Runs all images and writes CSV/results. |
 
 ## 7. Results
 
@@ -342,28 +342,28 @@ Code/data/outputs/results_NNN.csv
 
 TODO: Replace `TBD` values with final measured results.
 
-| Method                   | Mean SDCS up | Mean LPIPS down | Mean light-estimation time down |
-| ------------------------ | -----------: | --------------: | ------------------------------: |
-| Naive ambient shadow     |          TBD |             TBD |                             N/A |
-| Sobel-conditioned shadow |          TBD |             TBD |                             TBD |
-| DPT-conditioned shadow   |          TBD |             TBD |                             TBD |
+| Method | Mean SDCS up | Mean LPIPS down | Mean light-estimation time down |
+| --- | ---: | ---: | ---: |
+| Naive ambient shadow | TBD | TBD | N/A |
+| Sobel-conditioned shadow | TBD | TBD | TBD |
+| DPT-conditioned shadow | TBD | TBD | TBD |
 
 Suggested additional table:
 
-| Method                   | Median SDCS | Std SDCS | Failed / no-shadow cases |
-| ------------------------ | ----------: | -------: | -----------------------: |
-| Naive ambient shadow     |         TBD |      TBD |                      TBD |
-| Sobel-conditioned shadow |         TBD |      TBD |                      TBD |
-| DPT-conditioned shadow   |         TBD |      TBD |                      TBD |
+| Method | Median SDCS | Std SDCS | Failed / no-shadow cases |
+| --- | ---: | ---: | ---: |
+| Naive ambient shadow | TBD | TBD | TBD |
+| Sobel-conditioned shadow | TBD | TBD | TBD |
+| DPT-conditioned shadow | TBD | TBD | TBD |
 
 ### 7.2 Runtime Results
 
 TODO: Fill from final CSV.
 
-| Estimator | Mean time per image | Notes                         |
-| --------- | ------------------: | ----------------------------- |
-| Sobel     |                 TBD | CPU-only, no model loading.   |
-| DPT-Large |                 TBD | Requires DPT model inference. |
+| Estimator | Mean time per image | Notes |
+| --- | ---: | --- |
+| Sobel | TBD | CPU-only, no model loading. |
+| DPT-Large | TBD | Requires DPT model inference. |
 
 ### 7.3 Qualitative Results
 

@@ -23,7 +23,7 @@ def _load_module(filename, module_name):
 
 seg_mod  = _load_module("1_segmentation.py", "segmentation")
 illu_mod = _load_module("2_illumination.py", "illumination")
-gen_mod  = _load_module("3_compositing.py",   "generation")
+gen_mod  = _load_module("3_generation.py",   "generation")
 eval_mod = _load_module("4_evaluation.py",   "evaluation")
 
 segment_product               = seg_mod.segment_product
@@ -81,7 +81,7 @@ def run_pipeline(input_image_pil, bg_style, use_dl_baseline):
     sdcs_dl_str = ""
     if dl_pil is not None:
         dl_arr  = np.array(dl_pil)
-        sdcs_dl = compute_sdcs(dl_arr, mask, theta_sobel)
+        sdcs_dl = compute_sdcs(dl_arr, mask, theta_dl)
         sdcs_dl_str = f"  DL SDCS:    {sdcs_dl:.3f}" if sdcs_dl is not None else "  DL SDCS:    no shadow detected"
 
     label = (
@@ -143,4 +143,5 @@ with gr.Blocks(title="Illumination-Aware Product Photography") as demo:
     )
 
 if __name__ == "__main__":
-    demo.launch(share=True)   # share=True gives a public link on Colab
+    print("Starting Gradio with share=True. The public URL will appear below after Gradio finishes setup.", flush=True)
+    demo.launch(share=True, show_error=True)   # share=True gives a public link on Colab
