@@ -1,0 +1,57 @@
+% Minimal local NeurIPS-style file for the CV2 final report.
+% This is intentionally lightweight so the report can compile without
+% downloading external style files.
+
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{neurips_2024}[2024/01/01 Local NeurIPS-style report format]
+
+\newif\if@preprint
+\@preprinttrue
+\DeclareOption{preprint}{\@preprinttrue}
+\DeclareOption{final}{\@preprintfalse}
+\ProcessOptions\relax
+
+\RequirePackage[margin=1in]{geometry}
+\RequirePackage{times}
+\RequirePackage{microtype}
+\RequirePackage{xcolor}
+\RequirePackage{fancyhdr}
+\RequirePackage{titlesec}
+\RequirePackage{titling}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+\linespread{0.98}
+
+\definecolor{neuripsblue}{RGB}{38,73,122}
+
+\titleformat{\section}
+  {\large\bfseries\color{neuripsblue}}
+  {\thesection}{0.6em}{}
+\titleformat{\subsection}
+  {\normalsize\bfseries}
+  {\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}
+  {\normalsize\itshape}
+  {\thesubsubsection}{0.6em}{}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small Illumination-Aware Product Photography}
+\rhead{\small CV2 Final Project}
+\cfoot{\thepage}
+\renewcommand{\headrulewidth}{0.3pt}
+
+\pretitle{\begin{center}\LARGE\bfseries}
+\posttitle{\par\end{center}\vspace{-0.6em}}
+\preauthor{\begin{center}\normalsize}
+\postauthor{\par\end{center}\vspace{-0.5em}}
+\predate{\begin{center}\small}
+\postdate{\par\end{center}\vspace{-0.8em}}
+
+\newenvironment{abstract}{%
+  \begin{center}\bfseries Abstract\end{center}
+  \begin{quote}\small
+}{%
+  \end{quote}
+}
