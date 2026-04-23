@@ -5,7 +5,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from constants import IMAGE_EXTENSIONS, MASKS_DIR, RAW_IMAGES_DIR, TEST_IMAGE_NAME
+from constants import IMAGE_EXTENSIONS, MASKS_DIR, RAW_IMAGES_DIR, TEST_IMAGE_NAME, TEST_PRODUCT_NAME
 
 
 def discover_product_images() -> tuple[list[str], list[str], str]:
@@ -51,7 +51,7 @@ def visualize_sam_segmentation() -> None:
     import matplotlib.pyplot as plt
 
     test_image_path = Path(RAW_IMAGES_DIR) / TEST_IMAGE_NAME
-    test_product_path = Path(MASKS_DIR) / "test_product.png"
+    test_product_path = Path(MASKS_DIR) / TEST_PRODUCT_NAME
 
     if not test_image_path.exists() or not test_product_path.exists():
         raise FileNotFoundError("Missing test image or segmentation output. Run Cell 2.1 first.")
