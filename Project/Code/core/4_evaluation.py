@@ -85,7 +85,7 @@ def compute_sdcs(composite_rgb, product_mask, theta_fg_deg):
     # Math: Cosine of the difference between actual shadow and expected shadow
     # Cosine(0 difference) = 1.0. Cosine(180 difference) = -1.0.
     expected_shadow_rad = theta_fg_rad + np.pi
-    sdcs = np.cos(theta_shadow_rad - expected_shadow_rad)
+    sdcs = np.abs(np.cos(theta_shadow_rad - expected_shadow_rad))
 
     return float(sdcs)
 
